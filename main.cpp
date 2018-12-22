@@ -2,10 +2,6 @@
 #include <iostream>
 #include <rapidjson/document.h>
 #include <rapidjson/istreamwrapper.h>
-#include <boost/iostreams/filtering_streambuf.hpp>
-#include <boost/iostreams/filter/zlib.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
-#include <boost/iostreams/copy.hpp>
 
 #include <cstdint>
 
@@ -43,14 +39,26 @@ struct Like {
     t time;
 };
 
-void prepare() {
-    ifstream ifs("../accounts_1.json");
+unordered_map<i, Account> map;
+unordered_map<i, Like> like_map;
+
+ifstream unzip() {
+    char * cpath = getenv("DATA_PATH");
+    string path;
+    if (cpath == nullptr) {
+        path = "data.zip";
+    } else {
+        path = string(cpath);
+    }
+    system(string("unzip -o ").append(path).data());
+
+    return ifstream("accounts_1.json");
+}
+
+void prepare(ifstream &ifs) {
     if (!ifs.is_open()) {
         std::cout << "Failed to load file" << std::endl;
     }
-
-    unordered_map<i, Account> map;
-    unordered_map<i, Like> like_map;
 
     rapidjson::IStreamWrapper isw(ifs);
     rapidjson::Document d;
@@ -138,6 +146,7 @@ void prepare() {
 }
 
 int main() {
-    prepare();
+    auto ifs = unzip();
+    prepare(ifs);
     return 0;
 }
