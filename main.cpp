@@ -1,35 +1,44 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <cstdint>
+#include <string>
+
+#include <map>
+#include <unordered_map>
+#include <vector>
+
+#include <boost/dynamic_bitset.hpp>
+#include <boost/bimap.hpp>
+#include <boost/bimap/unordered_set_of.hpp>
+
 #include <rapidjson/document.h>
 #include <rapidjson/istreamwrapper.h>
 
-#include <cstdint>
-
-#include <unordered_map>
 #include <evhttp.h>
 
-#define i int32_t
+#define i uint32_t
 #define t int32_t
 
 using namespace std;
 
 struct Account {
     i id;
+    i email_domain;
     t birth;
     t joined;
     t premium_start;
     t premium_finish;
 
     string * interests;
-    string email;
+    string email_name;
     string fname;
     string sname;
     string phone;
     string country;
     string city;
 
-    char sex;
+    bool sex;
     bool status1 = false;
     bool status2 = false;
     bool has_premium = false;
@@ -41,45 +50,57 @@ struct Like {
     t time;
 };
 
-unordered_map<i, Account> map;
+unordered_map<i, Account> accounts_map;
 unordered_map<i, Like> like_map;
 
+vector<i> order;
+boost::dynamic_bitset<> sex;
+boost::bimap<boost::bimaps::unordered_set_of<i>,
+        boost::bimaps::unordered_set_of<string> > domains;
+
+map<string, i> emails_map;
+
+
 void unzip() {
-    char * cpath = getenv("DATA_PATH");
-    string path;
-    if (cpath == nullptr) {
-        path = "data.zip";
-    } else {
-        path = string(cpath);
-    }
-    system(string("unzip -q -o ").append(path).data());
+    system(string("unzip -q -o ").append(getenv("DATA_PATH")).data());
 }
 
 void prepare() {
     for (int i = 1; ; i++) {
         char path[20];
         sprintf(path, "accounts_%d.json", i);
-        cout << path;
         auto ifs = ifstream(path);
         if (!ifs.is_open()) {
-            cout << " fail" << endl;
             break;
         }
-        cout << " success" << endl;
         rapidjson::IStreamWrapper isw(ifs);
         rapidjson::Document d;
         d.ParseStream(isw);
         auto json_accounts = d["accounts"].GetArray();
         for (auto &json_account : json_accounts) {
+
+            // CONSTRUCT ACCOUNT
+
             Account account{};
-            account.id = json_account["id"].GetInt();
-            account.sex = json_account["sex"].GetString()[0];
+            account.id = static_cast<unsigned int>(json_account["id"].GetInt());
+            account.sex = json_account["sex"].GetString()[0] == 'f';
             account.birth = json_account["birth"].GetInt();
             account.joined = json_account["joined"].GetInt();
-            account.email = string(
+            string email = string(
                     json_account["email"].GetString(),
                     json_account["email"].GetStringLength()
             );
+
+            auto at = email.find('@');
+            account.email_name = email.substr(0, at);
+            string domain = email.substr(at + 1);
+            auto domains_it = domains.right.find(domain);
+            if (domains_it == domains.right.end()) {
+                account.email_domain = static_cast<unsigned int>(domain.size());
+                domains.insert({static_cast<unsigned int>(domains.size()), domain});
+            } else {
+                account.email_domain = domains_it->second;
+            }
 
             if (json_account["status"].GetString()[0] != -47) { // свободны
                 if (json_account["status"].GetString()[1] == -78) { // все сложно
@@ -130,21 +151,32 @@ void prepare() {
                 account.premium_finish = json_account["premium"]["finish"].GetInt();
             }
 
-            map[account.id] = account;
+            accounts_map[account.id] = account;
+
+            // CONSTRUCT LIKES
+
             if (json_account.HasMember("likes")) {
                 for (auto &json_like : json_account["likes"].GetArray()) {
                     Like like{};
-                    like.from = json_account["id"].GetInt();
-                    like.to = json_like["id"].GetInt();
+                    like.from = static_cast<unsigned int>(json_account["id"].GetInt());
+                    like.to = static_cast<unsigned int>(json_like["id"].GetInt());
                     like.time = json_like["ts"].GetInt();
                     like_map[like.from] = like;
                 }
             }
+
+            // BUILD INDEXES
+
+            order.emplace_back(account.id);
+            sex.push_back(account.sex);
+            emails_map[email] = account.id;
+
         }
     }
 
-    cout << map.size() << endl;
-    cout << like_map.size() << endl;
+    cout << "Accounts " << accounts_map.size() << endl;
+    cout << "Likes " << like_map.size() << endl;
+    cout << "Domains " << domains.size() << endl;
 }
 
 void notfound(evhttp_request *request, void *params) {
