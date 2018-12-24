@@ -10,13 +10,10 @@ RUN ./configure --prefix=/usr/local
 RUN make
 RUN make install
 
-RUN apt-get install -y libboost-all-dev
-
 EXPOSE 80
 
-ENV DATA_PATH=/tmp/data/data.zip
-ENV PORT=80
-ENV HOST=0.0.0.0
+ENV DATA_PATH=/tmp/data/data.zip PORT=80 HOST=0.0.0.0 START_SERVER=1 \
+    OPTIONS_PATH=/tmp/data/options.txt
 
 WORKDIR /app
 ADD lib/ ./lib/
