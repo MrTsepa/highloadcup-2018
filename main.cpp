@@ -48,6 +48,47 @@ struct Like {
     t time;
 };
 
+enum Field {
+    ID, SEX, EMAIL, STATUS, FNAME, SNAME, PHONE, COUNTRY,
+    CITY, BIRTH, INTERESTS, LIKES, PREMIUM, QUERY_ID, LIMIT
+};
+
+map<Field, string> field_string = {
+        {ID, "id"}, {SEX, "sex"}, {EMAIL, "email"}, {STATUS, "status"},
+        {FNAME, "fname"}, {SNAME, "sname"}, {PHONE, "phone"}
+};
+
+string account_field_value(Account& account, Field field) {
+    switch (field) {
+        case ID: {
+            return to_string(account.id);
+        }
+        case SEX: {
+            return account.sex ? "f" : "m";
+        }
+        case EMAIL: {
+            return account.email;
+        }
+        case STATUS: {
+            switch (account.status) {
+                case 0:
+                    return "свободны";
+                case 1:
+                    return "всё сложно";
+                case 2:
+                    return "заняты";
+                default:
+                    return "";
+            }
+        }
+        case FNAME: {
+            return account.fname;
+        }
+        default:
+            return "";
+    }
+}
+
 t CURRENT_TIME;
 
 unordered_map<i, Account> accounts_map;
@@ -207,28 +248,16 @@ void build_indices() {
         birth_cmp[account.birth] = account.id;
 
         string domain = account.email.substr(account.email.find('@') + 1);
-        auto domain_index_it = email_domain_index.find(domain);
-        if (domain_index_it == email_domain_index.end()) {
-            email_domain_index[domain] = unordered_set<uint>();
-        }
         email_domain_index[domain].emplace(account.id);
 
         status_indexes[account.status].emplace(account.id);
 
         if (!account.fname.empty()) {
-            auto fname_index_it = fname_index.find(account.fname);
-            if (fname_index_it == fname_index.end()) {
-                fname_index[account.fname] = unordered_set<uint>();
-            }
             fname_index[account.fname].emplace(account.id);
         } else {
             fname_null.emplace(account.id);
         }
         if (!account.sname.empty()) {
-            auto sname_index_it = sname_index.find(account.sname);
-            if (sname_index_it == sname_index.end()) {
-                sname_index[account.sname] = unordered_set<uint>();
-            }
             sname_index[account.sname].emplace(account.id);
         } else {
             sname_null.emplace(account.id);
@@ -237,43 +266,24 @@ void build_indices() {
             auto c1 = account.phone.find('(');
             auto c2 = account.phone.find(')');
             string code = account.phone.substr(c1 + 1, c2 - c1 - 1);
-            auto phone_index_it = phone_index.find(code);
-            if (phone_index_it == phone_index.end()) {
-                phone_index[code] = unordered_set<uint>();
-            }
             phone_index[code].emplace(account.id);
         } else {
             phone_null.emplace(account.id);
         }
         if (!account.country.empty()) {
-            auto country_index_it = country_index.find(account.country);
-            if (country_index_it == country_index.end()) {
-                country_index[account.country] = unordered_set<uint>();
-            }
             country_index[account.country].emplace(account.id);
         } else {
             country_null.emplace(account.id);
         }
         if (!account.city.empty()) {
-            auto city_index_it = city_index.find(account.city);
-            if (city_index_it == city_index.end()) {
-                city_index[account.city] = unordered_set<uint>();
-            }
             city_index[account.city].emplace(account.id);
         } else {
             city_null.emplace(account.id);
         }
         year_t year = get_year(account.birth);
-        auto year_index_it = year_index.find(year);
-        if (year_index_it == year_index.end()) {
-            year_index[year] = unordered_set<uint>();
-        }
         year_index[year].emplace(account.id);
 
         for (const auto &interest : account.interests) {
-            if (interests_index.find(interest) == interests_index.end()) {
-                interests_index[interest] = unordered_set<uint>();
-            }
             interests_index[interest].emplace(account.id);
         }
         if (account.has_premium) {
@@ -291,24 +301,21 @@ void build_indices() {
     }
 }
 
-
 void filter_query_parse(
         const char *query,
         unordered_set<i> **sets,
         unordered_set<i> **neg_sets,
         size_t *sets_size,
         size_t *neg_sets_size,
-        int* limit
+        int* limit,
+        vector<Field>& fields
 ) {
     enum State {
         FIELD, PRED, VALUE, DONE
     };
-    enum Field {
-        SEX, EMAIL, STATUS, FNAME, SNAME, PHONE, COUNTRY,
-        CITY, BIRTH, INTERESTS, LIKES, PREMIUM, QUERY_ID, LIMIT
-    };
+
     enum Pred {
-        LT, GT, EQ, STARTS, NULL_, DOMAIN_, NEQ, ANY, CODE, YEAR, CONTAINS, NOW
+        LT, GT, EQ, STARTS, NULL_, DOMAIN_, NEQ, ANY, CODE, YEAR, CONTAINS, NOW, Nan
     };
 
     const char *cur = query;
@@ -316,7 +323,7 @@ void filter_query_parse(
     string val;
     State state = FIELD;
     Field field;
-    Pred pred;
+    Pred pred = Nan;
     while (state != FIELD or cur[0] != '\0') {
         switch (state) {
             case FIELD: {
@@ -421,6 +428,7 @@ void filter_query_parse(
                 break;
             }
             case DONE: {
+                fields.emplace_back(field);
                 switch (field) {
                     case SEX:
                         switch (pred) {
@@ -632,23 +640,43 @@ void filter(evhttp_request *request, void *params) {
     int limit = 0;
     const char *query = strchr(request->uri, '?') + 1;
     set<i> merge_result;
-
-    filter_query_parse(query, sets, neg_sets, &sets_size, &neg_sets_size, &limit);
+    vector<Field> fields = vector<Field> {ID};
+    filter_query_parse(query, sets, neg_sets, &sets_size, &neg_sets_size, &limit, fields);
     merge_sets(sets, neg_sets, sets_size, neg_sets_size, &merge_result);
 
     evbuffer *buffer;
     buffer = evbuffer_new();
+    evbuffer_add_printf(buffer, "{\"accounts\": [");
     int k = 0;
     for (auto it = merge_result.rbegin(); it != merge_result.rend(); it++) {
         if (k >= limit) {
             break;
         }
-        evbuffer_add_printf(buffer, "%d\n", *it);
+        if (k > 0) {
+            evbuffer_add_printf(buffer, ",");
+        }
+        evbuffer_add_printf(buffer, "{");
+        for (size_t l = 0; l < fields.size(); l++) {
+            const Field field = fields[l];
+            if (field == LIMIT or field == QUERY_ID) {
+                continue;
+            }
+            if (l > 0) {
+                evbuffer_add_printf(buffer, ",");
+            }
+            evbuffer_add_printf(
+                    buffer,
+                    R"("%s": "%s")",
+                    field_string[field].data(),
+                    account_field_value(accounts_map[*it], field).data()
+            );
+        }
+        evbuffer_add_printf(buffer, "}");
         k++;
     }
-
+    evbuffer_add_printf(buffer, "]}");
     evhttp_add_header(evhttp_request_get_output_headers(request),
-                       "Content-Type", "text/plain");
+                       "Content-Type", "application/json");
     evhttp_add_header(evhttp_request_get_output_headers(request),
                       "Connection", "Keep-Alive");
     evhttp_send_reply(request, HTTP_OK, "OK", buffer);
