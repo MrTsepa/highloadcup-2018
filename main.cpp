@@ -55,20 +55,23 @@ enum Field {
 
 map<Field, string> field_string = {
         {ID, "id"}, {SEX, "sex"}, {EMAIL, "email"}, {STATUS, "status"},
-        {FNAME, "fname"}, {SNAME, "sname"}, {PHONE, "phone"}
+        {FNAME, "fname"}, {SNAME, "sname"}, {PHONE, "phone"},
+        {COUNTRY, "country"}, {CITY, "city"}, {BIRTH, "birth"},
+        {INTERESTS, "interests"}, {LIKES, "likes"},
+        {PREMIUM, "premium"}
 };
 
 string account_field_value(Account& account, Field field) {
     switch (field) {
-        case ID: {
-            return to_string(account.id);
-        }
-        case SEX: {
-            return account.sex ? "f" : "m";
-        }
-        case EMAIL: {
-            return account.email;
-        }
+        case ID: return to_string(account.id);
+        case BIRTH: return to_string(account.birth);
+        case SEX: return account.sex ? "f" : "m";
+        case EMAIL: return account.email;
+        case FNAME: return account.fname;
+        case SNAME: return account.sname;
+        case PHONE: return account.phone;
+        case COUNTRY: return account.country;
+        case CITY: return account.city;
         case STATUS: {
             switch (account.status) {
                 case 0:
@@ -81,11 +84,7 @@ string account_field_value(Account& account, Field field) {
                     return "";
             }
         }
-        case FNAME: {
-            return account.fname;
-        }
-        default:
-            return "";
+        default: return "";
     }
 }
 
@@ -301,14 +300,12 @@ void build_indices() {
     }
 }
 
-void filter_query_parse(
+int filter_query_parse(
         const char *query,
-        unordered_set<i> **sets,
-        unordered_set<i> **neg_sets,
-        size_t *sets_size,
-        size_t *neg_sets_size,
-        int* limit,
-        vector<Field>& fields
+        vector<unordered_set<i>* >& sets,
+        vector<unordered_set<i>* >& neg_sets,
+        long* limit,
+        set<Field>& fields
 ) {
     enum State {
         FIELD, PRED, VALUE, DONE
@@ -319,7 +316,6 @@ void filter_query_parse(
     };
 
     const char *cur = query;
-    size_t k = *sets_size, g = *neg_sets_size;
     string val;
     State state = FIELD;
     Field field;
@@ -327,90 +323,94 @@ void filter_query_parse(
     while (state != FIELD or cur[0] != '\0') {
         switch (state) {
             case FIELD: {
-                if (cur[0] == 's' and cur[1] == 'e') {
+                if (strncmp(cur, "sex", 3) == 0) {
                     field = SEX;
                     cur += 4;
-                } else if (cur[0] == 'e') {
+                } else if (strncmp(cur, "email", 5) == 0) {
                     field = EMAIL;
                     cur += 6;
-                } else if (cur[0] == 's' and cur[1] == 't') {
+                } else if (strncmp(cur, "status", 6) == 0) {
                     field = STATUS;
                     cur += 7;
-                } else if (cur[0] == 'f') {
+                } else if (strncmp(cur, "fname", 5) == 0) {
                     field = FNAME;
                     cur += 6;
-                } else if (cur[0] == 's' and cur[1] == 'n') {
+                } else if (strncmp(cur, "sname", 5) == 0) {
                     field = SNAME;
                     cur += 6;
-                } else if (cur[0] == 'c' and cur[1] == 'o') {
+                } else if (strncmp(cur, "country", 7) == 0) {
                     field = COUNTRY;
                     cur += 8;
-                } else if (cur[0] == 'c' and cur[1] == 'i') {
+                } else if (strncmp(cur, "city", 4) == 0) {
                     field = CITY;
                     cur += 5;
-                } else if (cur[0] == 'b') {
+                } else if (strncmp(cur, "birth", 5) == 0) {
                     field = BIRTH;
                     cur += 6;
-                } else if (cur[0] == 'i') {
+                } else if (strncmp(cur, "interests", 9) == 0) {
                     field = INTERESTS;
                     cur += 10;
-                } else if (cur[0] == 'l' and cur[2] == 'k') {
+                } else if (strncmp(cur, "likes", 5) == 0) {
                     field = LIKES;
                     cur += 6;
-                } else if (cur[0] == 'p') {
+                } else if (strncmp(cur, "premium", 7) == 0) {
                     field = PREMIUM;
                     cur += 8;
-                } else if (cur[0] == 'q') {
+                } else if (strncmp(cur, "query_id", 8) == 0) {
                     field = QUERY_ID;
                     cur += 9;
                     state = VALUE;
                     break;
-                } else if (cur[0] == 'l' and cur[2] == 'm') {
+                } else if (strncmp(cur, "limit", 5) == 0) {
                     field = LIMIT;
                     cur += 6;
                     state = VALUE;
                     break;
+                } else {
+                    return -1;
                 }
                 state = PRED;
                 break;
             }
             case PRED: {
-                if (cur[0] == 'g' and cur[1] == 't') {
+                if (strncmp(cur, "gt", 2) == 0) {
                     pred = GT;
                     cur += 3;
-                } else if (cur[0] == 'l') {
+                } else if (strncmp(cur, "lt", 2) == 0) {
                     pred = LT;
                     cur += 3;
-                } else if (cur[0] == 'e') {
+                } else if (strncmp(cur, "eq", 2) == 0) {
                     pred = EQ;
                     cur += 3;
-                } else if (cur[0] == 's') {
+                } else if (strncmp(cur, "starts", 6) == 0) {
                     pred = STARTS;
-                    cur += 6;
-                } else if (cur[0] == 'n' and cur[1] == 'u') {
+                    cur += 7;
+                } else if (strncmp(cur, "null", 4) == 0) {
                     pred = NULL_;
                     cur += 5;
-                } else if (cur[0] == 'd') {
+                } else if (strncmp(cur, "domain", 6) == 0) {
                     pred = DOMAIN_;
                     cur += 7;
-                } else if (cur[0] == 'n' and cur[1] == 'e') {
+                } else if (strncmp(cur, "neq", 3) == 0) {
                     pred = NEQ;
                     cur += 4;
-                } else if (cur[0] == 'a') {
+                } else if (strncmp(cur, "any", 3) == 0) {
                     pred = ANY;
                     cur += 4;
-                } else if (cur[0] == 'c' and cur[1] == 'o') {
+                } else if (strncmp(cur, "code", 4) == 0) {
                     pred = CODE;
                     cur += 5;
-                } else if (cur[0] == 'y') {
+                } else if (strncmp(cur, "year", 4) == 0) {
                     pred = YEAR;
                     cur += 5;
-                } else if (cur[0] == 'c' and cur[1] == 'o') {
+                } else if (strncmp(cur, "contains", 8) == 0) {
                     pred = CONTAINS;
                     cur += 9;
-                } else if (cur[0] == 'n' and cur[1] == 'o') {
+                } else if (strncmp(cur, "now", 3) == 0) {
                     pred = NOW;
                     cur += 4;
+                } else {
+                    return -1;
                 }
                 state = VALUE;
                 break;
@@ -428,20 +428,20 @@ void filter_query_parse(
                 break;
             }
             case DONE: {
-                fields.emplace_back(field);
+                fields.emplace(field);
                 switch (field) {
                     case SEX:
                         switch (pred) {
                             case EQ:
-                                sets[k] = val[0] == 'm' ? &is_m : &is_f;
-                                k++;
+                                sets.emplace_back(val[0] == 'm' ? &is_m : &is_f);
+                                break;
+                            default: return -1;
                         }
                         break;
                     case EMAIL: {
                         switch (pred) {
                             case DOMAIN_: {
-                                sets[k] = &email_domain_index[val];
-                                k++;
+                                sets.emplace_back(&email_domain_index[val]);
                                 break;
                             }
                             case LT: {
@@ -450,8 +450,7 @@ void filter_query_parse(
                                 for (auto it = email_cmp.begin(); it != lower; it++) {
                                     s->emplace(it->second);
                                 }
-                                sets[k] = s;
-                                k++;
+                                sets.emplace_back(s);
                                 break;
                             }
                             case GT: {
@@ -460,11 +459,10 @@ void filter_query_parse(
                                 for (auto it = upper; it != email_cmp.end(); it++) {
                                     s->emplace(it->second);
                                 }
-                                sets[k] = s;
-                                k++;
-
+                                sets.emplace_back(s);
                                 break;
                             }
+                            default: return -1;
                         }
                         break;
                     }
@@ -479,23 +477,23 @@ void filter_query_parse(
                         }
                         switch (pred) {
                             case EQ: {
-                                sets[k] = &status_indexes[status];
-                                k++;
+                                sets.emplace_back(&status_indexes[status]);
+
                                 break;
                             }
                             case NEQ: {
-                                neg_sets[k] = &status_indexes[status];
-                                g++;
+                                neg_sets.emplace_back(&status_indexes[status]);
                                 break;
                             }
+                            default: return -1;
                         }
                         break;
                     }
                     case FNAME: {
                         switch (pred) {
                             case EQ: {
-                                sets[k] = &fname_index[val];
-                                k++;
+                                sets.emplace_back(&fname_index[val]);
+
 
                                 break;
                             }
@@ -503,59 +501,58 @@ void filter_query_parse(
                                 size_t start = 0;
                                 auto at = val.find(',');
                                 while (at != string::npos) {
-                                    sets[k] = &fname_index[val.substr(start, at - start)];
-                                    k++;
+                                    sets.emplace_back(&fname_index[val.substr(start, at - start)]);
+
                                     start = at + 1;
                                     at = val.find(',', start);
                                 }
                                 break;
                             }
                             case NULL_: {
-                                sets[k] = &fname_null;
-                                k++;
+                                sets.emplace_back(&fname_null);
+
                                 break;
                             }
+                            default: return -1;
                         }
                         break;
                     }
                     case SNAME: {
                         switch (pred) {
                             case EQ: {
-                                sets[k] = &sname_index[val];
-                                k++;
+                                sets.emplace_back(&sname_index[val]);
                                 break;
                             }
                             case ANY: {
                                 size_t start = 0;
                                 auto at = val.find(',');
                                 while (at != string::npos) {
-                                    sets[k] = &sname_index[val.substr(start, at - start)];
-                                    k++;
+                                    sets.emplace_back(&sname_index[val.substr(start, at - start)]);
+
                                     start = at + 1;
                                     at = val.find(',', start);
                                 }
                                 break;
                             }
                             case NULL_: {
-                                sets[k] = &sname_null;
-                                k++;
+                                sets.emplace_back(&sname_null);
                                 break;
                             }
+                            default: return -1;
                         }
                         break;
                     }
                     case PHONE: {
                         switch (pred) {
                             case CODE: {
-                                sets[k] = &phone_index[val];
-                                k++;
+                                sets.emplace_back(&phone_index[val]);
                                 break;
                             }
                             case NULL_: {
-                                sets[k] = &phone_null;
-                                k++;
+                                sets.emplace_back(&phone_null);
                                 break;
                             }
+                            default: return -1;
                         }
                         break;
                     }
@@ -564,21 +561,26 @@ void filter_query_parse(
                             case EQ: {
                                 auto it = country_index.find(val);
                                 if (it != country_index.end()) {
-                                    sets[k] = &it->second;
-                                    k++;
+                                    sets.emplace_back(&it->second);
                                 }
                                 break;
                             }
                             case NULL_: {
-                                sets[k] = &country_null;
-                                k++;
+                                sets.emplace_back(&country_null);
                                 break;
                             }
+                            default: return -1;
                         }
                         break;
                     }
                     case LIMIT: {
-                        *limit = stoi(val);
+                        char* err;
+                        long converted = strtol(val.c_str(), &err, 10);
+                        if (*err != 0) {
+                            return -1;
+                        } else {
+                            *limit = converted;
+                        }
                         break;
                     }
                 }
@@ -587,19 +589,16 @@ void filter_query_parse(
             }
         }
     }
-    *sets_size = k;
-    *neg_sets_size = g;
+    return 0;
 }
 
-void merge_sets(unordered_set<i> **sets,
-                unordered_set<i> **neg_sets,
-                size_t sets_size,
-                size_t neg_sets_size,
+void merge_sets(vector<unordered_set<i>* >& sets,
+                vector<unordered_set<i>* >& neg_sets,
                 set<i>* result) {
-    if (sets_size > 0) {
+    if (!sets.empty()) {
         size_t min_size = sets[0]->size();
         size_t k_min = 0;
-        for (size_t k = 1; k < sets_size; k++) {
+        for (size_t k = 1; k < sets.size(); k++) {
             if (min_size < sets[k]->size()) {
                 min_size = sets[k]->size();
                 k_min = k;
@@ -607,7 +606,7 @@ void merge_sets(unordered_set<i> **sets,
         }
         for (const auto& item : *sets[k_min]) {
             bool good = true;
-            for (size_t k = 0; k < sets_size; k++) {
+            for (size_t k = 0; k < sets.size(); k++) {
                 if (k == k_min) {
                     continue;
                 }
@@ -617,7 +616,7 @@ void merge_sets(unordered_set<i> **sets,
                 }
             }
             if (good) {
-                for (size_t k = 0; k < neg_sets_size; k++) {
+                for (size_t k = 0; k < neg_sets.size(); k++) {
                     if (neg_sets[k]->find(item) != neg_sets[k]->end()) {
                         good = false;
                         break;
@@ -631,18 +630,27 @@ void merge_sets(unordered_set<i> **sets,
     }
 }
 
+set<i> merge_result;
+vector<unordered_set<i> *> sets;
+vector<unordered_set<i> *> neg_sets;
+
 void filter(evhttp_request *request, void *params) {
-    unordered_set<i> *sets[100];
-    unordered_set<i> *neg_sets[100];
-    sets[0] = &all;
-    size_t sets_size = 1;
-    size_t neg_sets_size = 0;
-    int limit = 0;
+    long limit = 0;
     const char *query = strchr(request->uri, '?') + 1;
-    set<i> merge_result;
-    vector<Field> fields = vector<Field> {ID};
-    filter_query_parse(query, sets, neg_sets, &sets_size, &neg_sets_size, &limit, fields);
-    merge_sets(sets, neg_sets, sets_size, neg_sets_size, &merge_result);
+    merge_result.clear();
+    sets.clear();
+    neg_sets.clear();
+    sets.emplace_back(&all);
+    set<Field> fields = set<Field> {ID, EMAIL};
+    if (filter_query_parse(query, sets, neg_sets, &limit, fields) != 0) {
+        evhttp_add_header(evhttp_request_get_output_headers(request),
+                          "Content-Type", "text/plain");
+        evhttp_add_header(evhttp_request_get_output_headers(request),
+                          "Connection", "Keep-Alive");
+        evhttp_send_reply(request, HTTP_BADREQUEST, nullptr, nullptr);
+        return;
+    }
+    merge_sets(sets, neg_sets, &merge_result);
 
     evbuffer *buffer;
     buffer = evbuffer_new();
@@ -656,20 +664,30 @@ void filter(evhttp_request *request, void *params) {
             evbuffer_add_printf(buffer, ",");
         }
         evbuffer_add_printf(buffer, "{");
-        for (size_t l = 0; l < fields.size(); l++) {
-            const Field field = fields[l];
+        size_t l = 0;
+        for (auto fit = fields.begin(); fit != fields.end(); fit++, l++) {
+            const Field field = *fit;
             if (field == LIMIT or field == QUERY_ID) {
                 continue;
             }
             if (l > 0) {
                 evbuffer_add_printf(buffer, ",");
             }
-            evbuffer_add_printf(
-                    buffer,
-                    R"("%s": "%s")",
-                    field_string[field].data(),
-                    account_field_value(accounts_map[*it], field).data()
-            );
+            if (field == ID or field == BIRTH) {
+                evbuffer_add_printf(
+                        buffer,
+                        R"("%s":%s)",
+                        field_string[field].data(),
+                        account_field_value(accounts_map[*it], field).data()
+                );
+            } else {
+                evbuffer_add_printf(
+                        buffer,
+                        R"("%s":"%s")",
+                        field_string[field].data(),
+                        account_field_value(accounts_map[*it], field).data()
+                );
+            }
         }
         evbuffer_add_printf(buffer, "}");
         k++;
@@ -696,7 +714,7 @@ void start_server(char *host, uint16_t port) {
     evhttp *server;
     ebase = event_base_new();
     server = evhttp_new(ebase);
-    evhttp_set_cb(server, "/accounts/filter", filter, nullptr);
+    evhttp_set_cb(server, "/accounts/filter/", filter, nullptr);
     evhttp_set_gencb(server, notfound, nullptr);
 
     if (evhttp_bind_socket(server, host, port) != 0) {
