@@ -53,7 +53,7 @@ t CURRENT_TIME;
 unordered_map<i, Account> accounts_map;
 unordered_map<i, Like> like_map;
 
-vector<i> order;
+unordered_set<i> all;
 unordered_set<i> is_f;
 unordered_set<i> is_m;
 unordered_set<i> has_active_premium;
@@ -197,7 +197,7 @@ void build_indices() {
     for (const auto& pair : accounts_map) {
         Account account = pair.second;
 
-        order.emplace_back(account.id);
+        all.emplace(account.id);
         if (account.sex) {
             is_f.emplace(account.id);
         } else {
@@ -297,21 +297,22 @@ void filter_query_parse(
         unordered_set<i> **sets,
         unordered_set<i> **neg_sets,
         size_t *sets_size,
-        size_t *neg_sets_size
+        size_t *neg_sets_size,
+        int* limit
 ) {
     enum State {
         FIELD, PRED, VALUE, DONE
     };
     enum Field {
         SEX, EMAIL, STATUS, FNAME, SNAME, PHONE, COUNTRY,
-        CITY, BIRTH, INTERESTS, LIKES, PREMIUM
+        CITY, BIRTH, INTERESTS, LIKES, PREMIUM, QUERY_ID, LIMIT
     };
     enum Pred {
         LT, GT, EQ, STARTS, NULL_, DOMAIN_, NEQ, ANY, CODE, YEAR, CONTAINS, NOW
     };
 
     const char *cur = query;
-    size_t k = 0, g = 0;
+    size_t k = *sets_size, g = *neg_sets_size;
     string val;
     State state = FIELD;
     Field field;
@@ -346,12 +347,22 @@ void filter_query_parse(
                 } else if (cur[0] == 'i') {
                     field = INTERESTS;
                     cur += 10;
-                } else if (cur[0] == 'l') {
+                } else if (cur[0] == 'l' and cur[2] == 'k') {
                     field = LIKES;
                     cur += 6;
                 } else if (cur[0] == 'p') {
                     field = PREMIUM;
                     cur += 8;
+                } else if (cur[0] == 'q') {
+                    field = QUERY_ID;
+                    cur += 9;
+                    state = VALUE;
+                    break;
+                } else if (cur[0] == 'l' and cur[2] == 'm') {
+                    field = LIMIT;
+                    cur += 6;
+                    state = VALUE;
+                    break;
                 }
                 state = PRED;
                 break;
@@ -411,7 +422,7 @@ void filter_query_parse(
             }
             case DONE: {
                 switch (field) {
-                    case SEX :
+                    case SEX:
                         switch (pred) {
                             case EQ:
                                 sets[k] = val[0] == 'm' ? &is_m : &is_f;
@@ -540,6 +551,28 @@ void filter_query_parse(
                         }
                         break;
                     }
+                    case COUNTRY: {
+                        switch (pred) {
+                            case EQ: {
+                                auto it = country_index.find(val);
+                                if (it != country_index.end()) {
+                                    sets[k] = &it->second;
+                                    k++;
+                                }
+                                break;
+                            }
+                            case NULL_: {
+                                sets[k] = &country_null;
+                                k++;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                    case LIMIT: {
+                        *limit = stoi(val);
+                        break;
+                    }
                 }
                 state = FIELD;
                 break;
@@ -566,13 +599,21 @@ void merge_sets(unordered_set<i> **sets,
         }
         for (const auto& item : *sets[k_min]) {
             bool good = true;
-            for (int k = 0; k < sets_size; k++) {
+            for (size_t k = 0; k < sets_size; k++) {
                 if (k == k_min) {
                     continue;
                 }
                 if (sets[k]->find(item) == sets[k]->end()) {
                     good = false;
                     break;
+                }
+            }
+            if (good) {
+                for (size_t k = 0; k < neg_sets_size; k++) {
+                    if (neg_sets[k]->find(item) != neg_sets[k]->end()) {
+                        good = false;
+                        break;
+                    }
                 }
             }
             if (good) {
@@ -584,7 +625,34 @@ void merge_sets(unordered_set<i> **sets,
 
 void filter(evhttp_request *request, void *params) {
     unordered_set<i> *sets[100];
-    unordered_set<i> **neg_sets[100];
+    unordered_set<i> *neg_sets[100];
+    sets[0] = &all;
+    size_t sets_size = 1;
+    size_t neg_sets_size = 0;
+    int limit = 0;
+    const char *query = strchr(request->uri, '?') + 1;
+    set<i> merge_result;
+
+    filter_query_parse(query, sets, neg_sets, &sets_size, &neg_sets_size, &limit);
+    merge_sets(sets, neg_sets, sets_size, neg_sets_size, &merge_result);
+
+    evbuffer *buffer;
+    buffer = evbuffer_new();
+    int k = 0;
+    for (auto it = merge_result.rbegin(); it != merge_result.rend(); it++) {
+        if (k >= limit) {
+            break;
+        }
+        evbuffer_add_printf(buffer, "%d\n", *it);
+        k++;
+    }
+
+    evhttp_add_header(evhttp_request_get_output_headers(request),
+                       "Content-Type", "text/plain");
+    evhttp_add_header(evhttp_request_get_output_headers(request),
+                      "Connection", "Keep-Alive");
+    evhttp_send_reply(request, HTTP_OK, "OK", buffer);
+    evbuffer_free(buffer);
 }
 
 void notfound(evhttp_request *request, void *params) {
@@ -621,20 +689,6 @@ int main() {
     t = chrono::system_clock::now();
     build_indices();
     cout << static_cast<chrono::duration<double>>(chrono::system_clock::now() - t).count() << endl;
-
-    unordered_set<i> *sets[100];
-    unordered_set<i> *neg_sets[100];
-    size_t sets_size = 0;
-    size_t neg_sets_size = 0;
-
-    filter_query_parse("email_lt=f&status_eq=всё+сложно&sex_eq=m", sets, neg_sets, &sets_size, &neg_sets_size);
-    set<i> result;
-    merge_sets(sets, neg_sets, sets_size, neg_sets_size, &result);
-
-    cout << sets_size << ' ' << neg_sets_size << endl;
-    for (auto item : result) {
-        cout << accounts_map[item].id << ' ' << accounts_map[item].sex << ' ' << accounts_map[item].email << endl;
-    }
 
     if (getenv("START_SERVER")[0] == '1') {
         char *host = getenv("HOST");
