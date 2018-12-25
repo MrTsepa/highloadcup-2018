@@ -6,6 +6,7 @@
 #include <chrono>
 
 #include <map>
+#include <set>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -54,6 +55,7 @@ unordered_map<i, Like> like_map;
 
 vector<i> order;
 unordered_set<i> is_f;
+unordered_set<i> is_m;
 unordered_set<i> has_active_premium;
 
 map<string, i> email_cmp;
@@ -98,9 +100,9 @@ void read_time() {
 }
 
 void parse_json() {
-    for (int i = 1;; i++) {
+    for (int j = 1;; j++) {
         char path[20];
-        sprintf(path, "accounts_%d.json", i);
+        sprintf(path, "accounts_%d.json", j);
         auto ifs = ifstream(path);
         if (!ifs.is_open()) {
             break;
@@ -198,18 +200,21 @@ void build_indices() {
         order.emplace_back(account.id);
         if (account.sex) {
             is_f.emplace(account.id);
+        } else {
+            is_m.emplace(account.id);
         }
         email_cmp[account.email] = account.id;
         birth_cmp[account.birth] = account.id;
 
-        auto at = account.email.find('@');
-        string domain = account.email.substr(at + 1);
+        string domain = account.email.substr(account.email.find('@') + 1);
         auto domain_index_it = email_domain_index.find(domain);
         if (domain_index_it == email_domain_index.end()) {
             email_domain_index[domain] = unordered_set<uint>();
         }
         email_domain_index[domain].emplace(account.id);
+
         status_indexes[account.status].emplace(account.id);
+
         if (!account.fname.empty()) {
             auto fname_index_it = fname_index.find(account.fname);
             if (fname_index_it == fname_index.end()) {
@@ -286,6 +291,302 @@ void build_indices() {
     }
 }
 
+
+void filter_query_parse(
+        const char *query,
+        unordered_set<i> **sets,
+        unordered_set<i> **neg_sets,
+        size_t *sets_size,
+        size_t *neg_sets_size
+) {
+    enum State {
+        FIELD, PRED, VALUE, DONE
+    };
+    enum Field {
+        SEX, EMAIL, STATUS, FNAME, SNAME, PHONE, COUNTRY,
+        CITY, BIRTH, INTERESTS, LIKES, PREMIUM
+    };
+    enum Pred {
+        LT, GT, EQ, STARTS, NULL_, DOMAIN_, NEQ, ANY, CODE, YEAR, CONTAINS, NOW
+    };
+
+    const char *cur = query;
+    size_t k = 0, g = 0;
+    string val;
+    State state = FIELD;
+    Field field;
+    Pred pred;
+    while (state != FIELD or cur[0] != '\0') {
+        switch (state) {
+            case FIELD: {
+                if (cur[0] == 's' and cur[1] == 'e') {
+                    field = SEX;
+                    cur += 4;
+                } else if (cur[0] == 'e') {
+                    field = EMAIL;
+                    cur += 6;
+                } else if (cur[0] == 's' and cur[1] == 't') {
+                    field = STATUS;
+                    cur += 7;
+                } else if (cur[0] == 'f') {
+                    field = FNAME;
+                    cur += 6;
+                } else if (cur[0] == 's' and cur[1] == 'n') {
+                    field = SNAME;
+                    cur += 6;
+                } else if (cur[0] == 'c' and cur[1] == 'o') {
+                    field = COUNTRY;
+                    cur += 8;
+                } else if (cur[0] == 'c' and cur[1] == 'i') {
+                    field = CITY;
+                    cur += 5;
+                } else if (cur[0] == 'b') {
+                    field = BIRTH;
+                    cur += 6;
+                } else if (cur[0] == 'i') {
+                    field = INTERESTS;
+                    cur += 10;
+                } else if (cur[0] == 'l') {
+                    field = LIKES;
+                    cur += 6;
+                } else if (cur[0] == 'p') {
+                    field = PREMIUM;
+                    cur += 8;
+                }
+                state = PRED;
+                break;
+            }
+            case PRED: {
+                if (cur[0] == 'g' and cur[1] == 't') {
+                    pred = GT;
+                    cur += 3;
+                } else if (cur[0] == 'l') {
+                    pred = LT;
+                    cur += 3;
+                } else if (cur[0] == 'e') {
+                    pred = EQ;
+                    cur += 3;
+                } else if (cur[0] == 's') {
+                    pred = STARTS;
+                    cur += 6;
+                } else if (cur[0] == 'n' and cur[1] == 'u') {
+                    pred = NULL_;
+                    cur += 5;
+                } else if (cur[0] == 'd') {
+                    pred = DOMAIN_;
+                    cur += 7;
+                } else if (cur[0] == 'n' and cur[1] == 'e') {
+                    pred = NEQ;
+                    cur += 4;
+                } else if (cur[0] == 'a') {
+                    pred = ANY;
+                    cur += 4;
+                } else if (cur[0] == 'c' and cur[1] == 'o') {
+                    pred = CODE;
+                    cur += 5;
+                } else if (cur[0] == 'y') {
+                    pred = YEAR;
+                    cur += 5;
+                } else if (cur[0] == 'c' and cur[1] == 'o') {
+                    pred = CONTAINS;
+                    cur += 9;
+                } else if (cur[0] == 'n' and cur[1] == 'o') {
+                    pred = NOW;
+                    cur += 4;
+                }
+                state = VALUE;
+                break;
+            }
+            case VALUE: {
+                const char *amp = strchr(cur, '&');
+                if (amp != nullptr) {
+                    val = string(cur, amp - cur);
+                    cur = amp + 1;
+                } else {
+                    val = string(cur);
+                    cur = cur + val.size();
+                }
+                state = DONE;
+                break;
+            }
+            case DONE: {
+                switch (field) {
+                    case SEX :
+                        switch (pred) {
+                            case EQ:
+                                sets[k] = val[0] == 'm' ? &is_m : &is_f;
+                                k++;
+                        }
+                        break;
+                    case EMAIL: {
+                        switch (pred) {
+                            case DOMAIN_: {
+                                sets[k] = &email_domain_index[val];
+                                k++;
+                                break;
+                            }
+                            case LT: {
+                                auto lower = email_cmp.lower_bound(val);
+                                auto *s = new unordered_set<i>;
+                                for (auto it = email_cmp.begin(); it != lower; it++) {
+                                    s->emplace(it->second);
+                                }
+                                sets[k] = s;
+                                k++;
+                                break;
+                            }
+                            case GT: {
+                                auto upper = email_cmp.upper_bound(val);
+                                auto *s = new unordered_set<i>;
+                                for (auto it = upper; it != email_cmp.end(); it++) {
+                                    s->emplace(it->second);
+                                }
+                                sets[k] = s;
+                                k++;
+
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                    case STATUS: {
+                        int status = 0; // свободны
+                        if (val[0] != -47) {
+                            if (val[1] == -78) { // все сложно
+                                status = 1;
+                            } else { // заняты
+                                status = 2;
+                            }
+                        }
+                        switch (pred) {
+                            case EQ: {
+                                sets[k] = &status_indexes[status];
+                                k++;
+                                break;
+                            }
+                            case NEQ: {
+                                neg_sets[k] = &status_indexes[status];
+                                g++;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                    case FNAME: {
+                        switch (pred) {
+                            case EQ: {
+                                sets[k] = &fname_index[val];
+                                k++;
+
+                                break;
+                            }
+                            case ANY: {
+                                size_t start = 0;
+                                auto at = val.find(',');
+                                while (at != string::npos) {
+                                    sets[k] = &fname_index[val.substr(start, at - start)];
+                                    k++;
+                                    start = at + 1;
+                                    at = val.find(',', start);
+                                }
+                                break;
+                            }
+                            case NULL_: {
+                                sets[k] = &fname_null;
+                                k++;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                    case SNAME: {
+                        switch (pred) {
+                            case EQ: {
+                                sets[k] = &sname_index[val];
+                                k++;
+                                break;
+                            }
+                            case ANY: {
+                                size_t start = 0;
+                                auto at = val.find(',');
+                                while (at != string::npos) {
+                                    sets[k] = &sname_index[val.substr(start, at - start)];
+                                    k++;
+                                    start = at + 1;
+                                    at = val.find(',', start);
+                                }
+                                break;
+                            }
+                            case NULL_: {
+                                sets[k] = &sname_null;
+                                k++;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                    case PHONE: {
+                        switch (pred) {
+                            case CODE: {
+                                sets[k] = &phone_index[val];
+                                k++;
+                                break;
+                            }
+                            case NULL_: {
+                                sets[k] = &phone_null;
+                                k++;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+                state = FIELD;
+                break;
+            }
+        }
+    }
+    *sets_size = k;
+    *neg_sets_size = g;
+}
+
+void merge_sets(unordered_set<i> **sets,
+                unordered_set<i> **neg_sets,
+                size_t sets_size,
+                size_t neg_sets_size,
+                set<i>* result) {
+    if (sets_size > 0) {
+        size_t min_size = sets[0]->size();
+        size_t k_min = 0;
+        for (size_t k = 1; k < sets_size; k++) {
+            if (min_size < sets[k]->size()) {
+                min_size = sets[k]->size();
+                k_min = k;
+            }
+        }
+        for (const auto& item : *sets[k_min]) {
+            bool good = true;
+            for (int k = 0; k < sets_size; k++) {
+                if (k == k_min) {
+                    continue;
+                }
+                if (sets[k]->find(item) == sets[k]->end()) {
+                    good = false;
+                    break;
+                }
+            }
+            if (good) {
+                result->emplace(item);
+            }
+        }
+    }
+}
+
+void filter(evhttp_request *request, void *params) {
+    unordered_set<i> *sets[100];
+    unordered_set<i> **neg_sets[100];
+}
+
 void notfound(evhttp_request *request, void *params) {
     evhttp_add_header(evhttp_request_get_output_headers(request),
                       "Content-Type", "text/plain");
@@ -299,7 +600,9 @@ void start_server(char *host, uint16_t port) {
     evhttp *server;
     ebase = event_base_new();
     server = evhttp_new(ebase);
+    evhttp_set_cb(server, "/accounts/filter", filter, nullptr);
     evhttp_set_gencb(server, notfound, nullptr);
+
     if (evhttp_bind_socket(server, host, port) != 0) {
         cout << "Could not bind to " << host << ":" << port << endl;
     }
@@ -318,6 +621,21 @@ int main() {
     t = chrono::system_clock::now();
     build_indices();
     cout << static_cast<chrono::duration<double>>(chrono::system_clock::now() - t).count() << endl;
+
+    unordered_set<i> *sets[100];
+    unordered_set<i> *neg_sets[100];
+    size_t sets_size = 0;
+    size_t neg_sets_size = 0;
+
+    filter_query_parse("email_lt=f&status_eq=всё+сложно&sex_eq=m", sets, neg_sets, &sets_size, &neg_sets_size);
+    set<i> result;
+    merge_sets(sets, neg_sets, sets_size, neg_sets_size, &result);
+
+    cout << sets_size << ' ' << neg_sets_size << endl;
+    for (auto item : result) {
+        cout << accounts_map[item].id << ' ' << accounts_map[item].sex << ' ' << accounts_map[item].email << endl;
+    }
+
     if (getenv("START_SERVER")[0] == '1') {
         char *host = getenv("HOST");
         uint16_t port = static_cast<uint16_t>(stoi(getenv("PORT")));
