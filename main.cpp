@@ -24,11 +24,12 @@ set<i> merge_result;
 
 void filter(evhttp_request *request, void *params) {
     long limit = 0;
-    const char *query = strchr(request->uri, '?') + 1;
+    const char *query = evhttp_uridecode(strchr(request->uri, '?') + 1, 1, nullptr);
+    cout << query << endl;
     merge_result.clear();
     sets.clear();
     neg_sets.clear();
-//    sets.emplace_back(&all);
+    sets.emplace_back(&ind.all);
     set<Field> fields = set<Field> {ID, EMAIL};
     if (filter_query_parse(
             query,
@@ -62,26 +63,32 @@ void filter(evhttp_request *request, void *params) {
         size_t l = 0;
         for (auto fit = fields.begin(); fit != fields.end(); fit++, l++) {
             const Field field = *fit;
-            if (field == LIMIT or field == QUERY_ID) {
+            if (field == LIMIT or field == QUERY_ID or field == INTERESTS or field == LIKES) {
                 continue;
             }
             if (l > 0) {
                 evbuffer_add_printf(buffer, ",");
             }
-            if (field == ID or field == BIRTH) {
-                evbuffer_add_printf(
-                        buffer,
-                        R"("%s":%s)",
-                        field_string[field].data(),
-                        account_field_value(account_map[*it], field).data()
-                );
-            } else {
-                evbuffer_add_printf(
-                        buffer,
-                        R"("%s":"%s")",
-                        field_string[field].data(),
-                        account_field_value(account_map[*it], field).data()
-                );
+            switch (field) {
+                case ID:
+                case BIRTH:
+                case PREMIUM: {
+                    evbuffer_add_printf(
+                            buffer,
+                            R"("%s":%s)",
+                            field_string[field].data(),
+                            account_field_value(account_map[*it], field).data()
+                    );
+                    break;
+                }
+                default: {
+                    evbuffer_add_printf(
+                            buffer,
+                            R"("%s":"%s")",
+                            field_string[field].data(),
+                            account_field_value(account_map[*it], field).data()
+                    );
+                }
             }
         }
         evbuffer_add_printf(buffer, "}");
@@ -89,18 +96,18 @@ void filter(evhttp_request *request, void *params) {
     }
     evbuffer_add_printf(buffer, "]}");
     evhttp_add_header(evhttp_request_get_output_headers(request),
-                       "Content-Type", "application/json");
+            "Content-Type", "application/json");
     evhttp_add_header(evhttp_request_get_output_headers(request),
-                      "Connection", "Keep-Alive");
+            "Connection", "Keep-Alive");
     evhttp_send_reply(request, HTTP_OK, "OK", buffer);
     evbuffer_free(buffer);
 }
 
 void notfound(evhttp_request *request, void *params) {
     evhttp_add_header(evhttp_request_get_output_headers(request),
-                      "Content-Type", "text/plain");
+            "Content-Type", "text/plain");
     evhttp_add_header(evhttp_request_get_output_headers(request),
-                      "Connection", "Keep-Alive");
+            "Connection", "Keep-Alive");
     evhttp_send_reply(request, HTTP_NOTFOUND, nullptr, nullptr);
 }
 

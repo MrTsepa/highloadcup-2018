@@ -8,6 +8,14 @@
 
 using namespace std;
 
+unordered_set<i> email_lt_set;
+unordered_set<i> email_gt_set;
+unordered_set<i> birth_lt_set;
+unordered_set<i> birth_gt_set;
+unordered_set<i> fname_any_set;
+unordered_set<i> city_any_set;
+unordered_set<i> interests_any_set;
+
 
 int filter_query_parse(
         const char *query,
@@ -44,6 +52,9 @@ int filter_query_parse(
                     cur += 7;
                 } else if (strncmp(cur, "fname", 5) == 0) {
                     field = FNAME;
+                    cur += 6;
+                } else if (strncmp(cur, "phone", 5) == 0) {
+                    field = PHONE;
                     cur += 6;
                 } else if (strncmp(cur, "sname", 5) == 0) {
                     field = SNAME;
@@ -157,20 +168,20 @@ int filter_query_parse(
                             }
                             case LT: {
                                 auto lower = index.email_cmp.lower_bound(val);
-                                auto *s = new unordered_set<i>;
+                                email_lt_set.clear();
                                 for (auto it = index.email_cmp.begin(); it != lower; it++) {
-                                    s->emplace(it->second);
+                                    email_lt_set.emplace(it->second);
                                 }
-                                sets.emplace_back(s);
+                                sets.emplace_back(&email_lt_set);
                                 break;
                             }
                             case GT: {
                                 auto upper = index.email_cmp.upper_bound(val);
-                                auto *s = new unordered_set<i>;
+                                email_gt_set.clear();
                                 for (auto it = upper; it != index.email_cmp.end(); it++) {
-                                    s->emplace(it->second);
+                                    email_gt_set.emplace(it->second);
                                 }
-                                sets.emplace_back(s);
+                                sets.emplace_back(&email_gt_set);
                                 break;
                             }
                             default:
@@ -208,18 +219,25 @@ int filter_query_parse(
                                 break;
                             }
                             case ANY: {
+                                fname_any_set.clear();
                                 size_t start = 0;
-                                auto at = val.find(',');
-                                while (at != string::npos) {
-                                    sets.emplace_back(&index.fname_index[val.substr(start, at - start)]);
-
+                                while (true) {
+                                    auto at = val.find(',', start);
+                                    const unordered_set<i>* s = &index.fname_index[val.substr(start, at - start)];
+                                    fname_any_set.insert(s->begin(), s->end());
                                     start = at + 1;
-                                    at = val.find(',', start);
+                                    if (at == string::npos) break;
                                 }
+                                sets.emplace_back(&fname_any_set);
                                 break;
                             }
                             case NULL_: {
-                                sets.emplace_back(&index.fname_null);
+                                if (val == "1") {
+                                    sets.emplace_back(&index.fname_null);
+                                    fields.erase(fields.find(field));
+                                } else if (val == "0") {
+                                    neg_sets.emplace_back(&index.fname_null);
+                                } else return -1;
                                 break;
                             }
                             default:
@@ -233,19 +251,17 @@ int filter_query_parse(
                                 sets.emplace_back(&index.sname_index[val]);
                                 break;
                             }
-                            case ANY: {
-                                size_t start = 0;
-                                auto at = val.find(',');
-                                while (at != string::npos) {
-                                    sets.emplace_back(&index.sname_index[val.substr(start, at - start)]);
-
-                                    start = at + 1;
-                                    at = val.find(',', start);
-                                }
+                            case STARTS: {
+                                // TODO !!!
                                 break;
                             }
                             case NULL_: {
-                                sets.emplace_back(&index.sname_null);
+                                if (val == "1") {
+                                    sets.emplace_back(&index.sname_null);
+                                    fields.erase(fields.find(field));
+                                } else if (val == "0") {
+                                    neg_sets.emplace_back(&index.sname_null);
+                                } else return -1;
                                 break;
                             }
                             default:
@@ -260,7 +276,12 @@ int filter_query_parse(
                                 break;
                             }
                             case NULL_: {
-                                sets.emplace_back(&index.phone_null);
+                                if (val == "1") {
+                                    sets.emplace_back(&index.phone_null);
+                                    fields.erase(fields.find(field));
+                                } else if (val == "0") {
+                                    neg_sets.emplace_back(&index.phone_null);
+                                } else return -1;
                                 break;
                             }
                             default:
@@ -278,11 +299,157 @@ int filter_query_parse(
                                 break;
                             }
                             case NULL_: {
-                                sets.emplace_back(&index.country_null);
+                                if (val == "1") {
+                                    sets.emplace_back(&index.country_null);
+                                    fields.erase(fields.find(field));
+                                } else if (val == "0") {
+                                    neg_sets.emplace_back(&index.country_null);
+                                } else return -1;
                                 break;
                             }
                             default:
                                 return -1;
+                        }
+                        break;
+                    }
+                    case CITY: {
+                        switch (pred) {
+                            case EQ: {
+                                auto it = index.city_index.find(val);
+                                if (it != index.city_index.end()) {
+                                    sets.emplace_back(&it->second);
+                                }
+                                break;
+                            }
+                            case ANY: {
+                                city_any_set.clear();
+                                size_t start = 0;
+                                while (true) {
+                                    auto at = val.find(',', start);
+                                    const unordered_set<i>* s = &index.city_index[val.substr(start, at - start)];
+                                    city_any_set.insert(s->begin(), s->end());
+                                    start = at + 1;
+                                    if (at == string::npos) break;
+                                }
+                                sets.emplace_back(&city_any_set);
+                                break;
+                            }
+                            case NULL_: {
+                                if (val == "1") {
+                                    sets.emplace_back(&index.city_null);
+                                    fields.erase(fields.find(field));
+                                } else if (val == "0") {
+                                    neg_sets.emplace_back(&index.city_null);
+                                } else return -1;
+                                break;
+                            }
+                            default:
+                                return -1;
+                        }
+                        break;
+                    }
+                    case BIRTH: {
+                        char *err;
+                        const long long_val = strtol(val.c_str(), &err, 10);
+                        if (*err != 0) {
+                            return -1;
+                        }
+                        switch (pred) {
+                            case LT: {
+                                auto lower = index.birth_cmp.lower_bound(long_val);
+                                birth_lt_set.clear();
+                                for (auto it = index.birth_cmp.begin(); it != lower; it++) {
+                                    birth_lt_set.emplace(it->second);
+                                }
+                                sets.emplace_back(&birth_lt_set);
+                                break;
+                            }
+                            case GT: {
+                                auto upper = index.birth_cmp.upper_bound(long_val);
+                                birth_gt_set.clear();
+                                for (auto it = upper; it != index.birth_cmp.end(); it++) {
+                                    birth_gt_set.emplace(it->second);
+                                }
+                                sets.emplace_back(&birth_gt_set);
+                                break;
+                            }
+                            case YEAR: {
+                                sets.emplace_back(&index.year_index[long_val]);
+                            }
+                            default: return -1;
+                        }
+                        break;
+                    }
+                    case INTERESTS: {
+                        switch (pred) {
+                            case CONTAINS: {
+                                size_t start = 0;
+                                auto at = val.find(',');
+                                while (at != string::npos) {
+                                    sets.emplace_back(&index.interests_index[val.substr(start, at - start)]);
+                                    start = at + 1;
+                                    at = val.find(',', start);
+                                }
+                                break;
+                            }
+                            case ANY: {
+                                interests_any_set.clear();
+                                size_t start = 0;
+                                while (true) {
+                                    auto at = val.find(',', start);
+                                    const unordered_set<i>* s = &index.interests_index[val.substr(start, at - start)];
+                                    interests_any_set.insert(s->begin(), s->end());
+                                    start = at + 1;
+                                    if (at == string::npos) break;
+                                }
+                                sets.emplace_back(&interests_any_set);
+                                break;
+                            }
+                            default: return -1;
+                        }
+                        break;
+                    }
+                    case LIKES: {
+                        switch (pred) {
+                            case CONTAINS: {
+                                size_t start = 0;
+                                auto at = val.find(',');
+                                while (at != string::npos) {
+                                    char *err;
+                                    const long like = strtol(val.substr(start, at - start).c_str(), &err, 10);
+                                    if (*err != 0) {
+                                        return -1;
+                                    }
+                                    sets.emplace_back(&index.like_index[like]);
+                                    start = at + 1;
+                                    at = val.find(',', start);
+                                }
+                                break;
+                            }
+                            default: return -1;
+                        }
+                        break;
+                    }
+                    case PREMIUM: {
+                        switch (pred) {
+                            case NOW: {
+                                if (val == "1") {
+                                    sets.emplace_back(&index.has_active_premium);
+                                } else if (val == "0") {
+                                    neg_sets.emplace_back(&index.has_active_premium);
+                                } else return -1;
+                                break;
+                            }
+                            case NULL_: {
+                                if (val == "1") {
+                                    sets.emplace_back(&index.premium_null);
+                                    fields.erase(fields.find(field));
+                                } else if (val == "0") {
+                                    neg_sets.emplace_back(&index.premium_null);
+                                } else return -1;
+                                break;
+                            }
+                            default: return -1;
                         }
                         break;
                     }

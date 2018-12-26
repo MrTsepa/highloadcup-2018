@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <sstream>
 
 #include <map>
 #include <unordered_map>
@@ -103,5 +104,14 @@ string account_field_value(Account& account, Field field) {
             }
         }
         default: return "";
+        case PREMIUM: {
+            stringstream ss;
+            ss  << "{\"start\":"
+                << account.premium_start
+                << ",\"finish\":"
+                << account.premium_finish
+                << "}";
+            return ss.str();
+        }
     }
 }

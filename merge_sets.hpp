@@ -9,10 +9,6 @@
 using namespace std;
 
 void add_to_limited_set(set<i> &s, const i &item, long limit) {
-    for (auto &it : s) {
-        cout << it << ' ';
-    }
-    cout << endl;
     if (s.size() < limit) {
         s.emplace(item);
     } else {
@@ -21,11 +17,6 @@ void add_to_limited_set(set<i> &s, const i &item, long limit) {
             s.erase(s.begin());
         }
     }
-    for (auto &it : s) {
-        cout << it << ' ';
-    }
-    cout << endl;
-    cout << endl;
 }
 
 void merge_sets(
