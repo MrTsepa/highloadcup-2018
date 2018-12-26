@@ -7,6 +7,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "trie.hpp"
+
 #define i uint32_t
 #define t int32_t
 #define year_t int
@@ -78,6 +80,8 @@ struct Index {
     unordered_map<year_t, unordered_set<i> > year_index;
     unordered_map<string, unordered_set<i> > interests_index;
     unordered_map<i, unordered_set<i> > like_index;
+
+    TrieNode<i> sname_prefix_trie;
 };
 
 string account_field_value(Account& account, Field field) {

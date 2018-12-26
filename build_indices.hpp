@@ -9,8 +9,8 @@ void build_indices(
         Index &index
 ) {
     const t CURRENT_TIME = read_time();
-    for (const auto &pair : account_map) {
-        const Account &account = pair.second;
+    for (auto &pair : account_map) {
+        Account &account = pair.second;
 
         index.all.emplace(account.id);
         if (account.sex) {
@@ -33,6 +33,7 @@ void build_indices(
         }
         if (!account.sname.empty()) {
             index.sname_index[account.sname].emplace(account.id);
+            trie_insert(index.sname_prefix_trie, account.sname, 0, account.id);
         } else {
             index.sname_null.emplace(account.id);
         }

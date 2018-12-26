@@ -11,5 +11,5 @@ find_library(event REQUIRED)
 
 include_directories("lib/include")
 
-add_executable(main main.cpp parse_json.hpp types.hpp utils.hpp build_indices.hpp parse_query.hpp merge_sets.hpp trie.cpp)
+add_executable(main main.cpp parse_json.hpp types.hpp utils.hpp build_indices.hpp parse_query.hpp merge_sets.hpp trie.hpp)
 target_link_libraries(main event)

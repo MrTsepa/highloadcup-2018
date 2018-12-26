@@ -18,7 +18,7 @@ ENV DATA_PATH=/tmp/data/data.zip PORT=80 HOST=0.0.0.0 START_SERVER=1 \
 WORKDIR /app
 ADD lib/ ./lib/
 ADD main.cpp build_indices.hpp merge_sets.hpp parse_json.hpp parse_query.hpp \
-    types.hpp utils.hpp ./
+    types.hpp utils.hpp trie.hpp ./
 ADD CMakeLists.txt .
 
 WORKDIR /app/build

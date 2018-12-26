@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <set>
 
+#include "trie.hpp"
 #include "types.hpp"
 
 using namespace std;
@@ -252,7 +253,8 @@ int filter_query_parse(
                                 break;
                             }
                             case STARTS: {
-                                // TODO !!!
+                                sets.emplace_back(trie_prefix_set_ptr(index.sname_prefix_trie, val, 0));
+
                                 break;
                             }
                             case NULL_: {
