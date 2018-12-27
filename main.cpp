@@ -27,10 +27,6 @@ void filter(evhttp_request *request, void *params) {
     long limit = 0;
     const char *query = evhttp_uridecode(strchr(request->uri, '?') + 1, 1, nullptr);
 //    cout << query << endl;
-    merge_result.clear();
-    sets.clear();
-    neg_sets.clear();
-    any_sets.clear();
     sets.emplace_back(&ind.all);
     set<Field> fields = set<Field> {ID, EMAIL};
     if (filter_query_parse(
@@ -47,6 +43,10 @@ void filter(evhttp_request *request, void *params) {
         evhttp_add_header(evhttp_request_get_output_headers(request),
                           "Connection", "Keep-Alive");
         evhttp_send_reply(request, HTTP_BADREQUEST, nullptr, nullptr);
+        merge_result.clear();
+        sets.clear();
+        neg_sets.clear();
+        any_sets.clear();
         return;
     }
     merge_sets(sets, neg_sets, any_sets, limit, merge_result);
@@ -104,6 +104,10 @@ void filter(evhttp_request *request, void *params) {
             "Connection", "Keep-Alive");
     evhttp_send_reply(request, HTTP_OK, "OK", buffer);
     evbuffer_free(buffer);
+    merge_result.clear();
+    sets.clear();
+    neg_sets.clear();
+    any_sets.clear();
 }
 
 void notfound(evhttp_request *request, void *params) {

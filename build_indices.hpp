@@ -70,6 +70,18 @@ void build_indices(
         }
     }
 
+    size_t j = 0;
+    for (auto &item : index.email_cmp) {
+        index.email_cmp_split[j / SPLIT_LEN].emplace_no_sset(item.second);
+        j++;
+    }
+
+    j = 0;
+    for (auto &item : index.birth_cmp) {
+        index.birth_cmp_split[j / SPLIT_LEN].emplace_no_sset(item.second);
+        j++;
+    }
+
     for (auto &item : like_map) {
         for (auto &item1 : item.second) {
             index.like_index[item1.first].emplace(item.first);

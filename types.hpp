@@ -94,6 +94,9 @@ struct IndexSet {
     }
 };
 
+const size_t SPLIT_LEN = 100;
+const size_t SPLIT_COUNT = 300;
+
 struct Index {
     IndexSet<i> all;
     IndexSet<i> is_f;
@@ -101,7 +104,10 @@ struct Index {
     IndexSet<i> has_active_premium;
 
     map<string, i> email_cmp;
+    IndexSet<i> email_cmp_split[SPLIT_COUNT];
     map<t, i> birth_cmp;
+    IndexSet<i> birth_cmp_split[SPLIT_COUNT];
+
 
     IndexSet<i> fname_null;
     IndexSet<i> sname_null;

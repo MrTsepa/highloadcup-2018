@@ -16,6 +16,8 @@ IndexSet<i> birth_gt_set;
 vector<IndexSet<i> *> fname_any_vector;
 vector<IndexSet<i> *> city_any_vector;
 vector<IndexSet<i> *> interests_any_vector;
+vector<IndexSet<i> *> email_any_vector;
+vector<IndexSet<i> *> birth_any_vector;
 
 
 int filter_query_parse(
@@ -170,20 +172,44 @@ int filter_query_parse(
                             }
                             case LT: {
                                 auto lower = index.email_cmp.lower_bound(val);
+                                size_t j = 0;
+                                auto it = index.email_cmp.begin();
+                                email_any_vector.clear();
+                                for (; it != lower; it++) {
+                                    j++;
+                                    if (j % SPLIT_LEN == 0) {
+                                        email_any_vector.emplace_back(&index.email_cmp_split[(j / SPLIT_LEN) - 1]);
+                                    }
+                                }
+
                                 email_lt_set.clear();
-                                for (auto it = index.email_cmp.begin(); it != lower; it++) {
+                                for (int m = 0; m < j % SPLIT_LEN; m++) {
+                                    it--;
                                     email_lt_set.emplace_no_sset(it->second);
                                 }
-                                sets.emplace_back(&email_lt_set);
+                                email_any_vector.emplace_back(&email_lt_set);
+                                any_sets.emplace_back(&email_any_vector);
                                 break;
                             }
                             case GT: {
                                 auto upper = index.email_cmp.upper_bound(val);
+                                size_t j = 0;
+                                auto it = prev(index.email_cmp.end());
+                                email_any_vector.clear();
+                                for (; it != upper; it--) {
+                                    j++;
+                                    if (j % SPLIT_LEN == 0) {
+                                        email_any_vector.emplace_back(&index.email_cmp_split[SPLIT_COUNT - (j / SPLIT_LEN)]);
+                                    }
+                                }
+
                                 email_gt_set.clear();
-                                for (auto it = upper; it != index.email_cmp.end(); it++) {
+                                for (int m = 0; m < j % SPLIT_LEN; m++) {
+                                    it++;
                                     email_gt_set.emplace_no_sset(it->second);
                                 }
-                                sets.emplace_back(&email_gt_set);
+                                email_any_vector.emplace_back(&email_gt_set);
+                                any_sets.emplace_back(&email_any_vector);
                                 break;
                             }
                             default:
@@ -355,22 +381,65 @@ int filter_query_parse(
                             return -1;
                         }
                         switch (pred) {
+//                            case LT: {
+//                                auto lower = index.birth_cmp.lower_bound(long_val);
+//                                birth_lt_set.clear();
+//                                for (auto it = index.birth_cmp.begin(); it != lower; it++) {
+//                                    birth_lt_set.emplace_no_sset(it->second);
+//                                }
+//                                sets.emplace_back(&birth_lt_set);
+//                                break;
+//                            }
+//                            case GT: {
+//                                auto upper = index.birth_cmp.upper_bound(long_val);
+//                                birth_gt_set.clear();
+//                                for (auto it = upper; it != index.birth_cmp.end(); it++) {
+//                                    birth_gt_set.emplace_no_sset(it->second);
+//                                }
+//                                sets.emplace_back(&birth_gt_set);
+//                                break;
+//                            }
                             case LT: {
                                 auto lower = index.birth_cmp.lower_bound(long_val);
+                                size_t j = 0;
+                                auto it = index.birth_cmp.begin();
+                                birth_any_vector.clear();
+                                for (; it != lower; it++) {
+                                    j++;
+                                    if (j % SPLIT_LEN == 0) {
+                                        birth_any_vector.emplace_back(&index.birth_cmp_split[(j / SPLIT_LEN) - 1]);
+                                    }
+                                }
+
                                 birth_lt_set.clear();
-                                for (auto it = index.birth_cmp.begin(); it != lower; it++) {
+                                for (int m = 0; m < j % SPLIT_LEN; m++) {
+                                    it--;
                                     birth_lt_set.emplace_no_sset(it->second);
                                 }
-                                sets.emplace_back(&birth_lt_set);
+                                birth_any_vector.emplace_back(&birth_lt_set);
+                                any_sets.emplace_back(&birth_any_vector);
                                 break;
                             }
                             case GT: {
                                 auto upper = index.birth_cmp.upper_bound(long_val);
+                                size_t j = 0;
+                                auto it = prev(index.birth_cmp.end());
+                                birth_any_vector.clear();
+                                for (; it != upper; it--) {
+                                    j++;
+                                    if (j % SPLIT_LEN == 0) {
+                                        birth_any_vector.emplace_back(
+                                                &index.birth_cmp_split[SPLIT_COUNT - (j / SPLIT_LEN)]);
+                                    }
+                                }
+
                                 birth_gt_set.clear();
-                                for (auto it = upper; it != index.birth_cmp.end(); it++) {
+                                for (int m = 0; m < j % SPLIT_LEN; m++) {
+                                    it++;
                                     birth_gt_set.emplace_no_sset(it->second);
                                 }
-                                sets.emplace_back(&birth_gt_set);
+                                birth_any_vector.emplace_back(&birth_gt_set);
+                                any_sets.emplace_back(&birth_any_vector);
                                 break;
                             }
                             case YEAR: {
