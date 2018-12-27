@@ -18,14 +18,14 @@ unordered_map<i, unordered_map<i, t> > like_map;
 
 Index ind;
 
-vector<unordered_set<i> *> sets;
-vector<unordered_set<i> *> neg_sets;
+vector<IndexSet<i> *> sets;
+vector<IndexSet<i> *> neg_sets;
 set<i> merge_result;
 
 void filter(evhttp_request *request, void *params) {
     long limit = 0;
     const char *query = evhttp_uridecode(strchr(request->uri, '?') + 1, 1, nullptr);
-    cout << query << endl;
+//    cout << query << endl;
     merge_result.clear();
     sets.clear();
     neg_sets.clear();

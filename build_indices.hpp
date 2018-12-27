@@ -68,11 +68,10 @@ void build_indices(
         } else {
             index.premium_null.emplace(account.id);
         }
-        index.like_index[account.id] = unordered_set<uint>();
     }
 
-    for (const auto &item : like_map) {
-        for (const auto &item1 : item.second) {
+    for (auto &item : like_map) {
+        for (auto &item1 : item.second) {
             index.like_index[item1.first].emplace(item.first);
         }
     }

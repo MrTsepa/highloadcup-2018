@@ -4,6 +4,7 @@
 #include <sstream>
 
 #include <map>
+#include <set>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -49,34 +50,83 @@ map<Field, string> field_string = {
         {PREMIUM, "premium"}
 };
 
+template <typename T>
+struct IndexSet {
+    unordered_set<T> uset;
+    set<T> sset;
+
+    bool no_sset = false;
+
+    void emplace(T &arg) {
+        uset.emplace(arg);
+        sset.emplace(arg);
+    }
+
+    void emplace(const T &arg) {
+        uset.emplace(arg);
+        sset.emplace(arg);
+    }
+
+    void emplace_no_sset(T &arg) {
+        no_sset = true;
+        uset.emplace(arg);
+    }
+
+    void insert(IndexSet<T> &s) {
+        uset.insert(s.uset.begin(), s.uset.end());
+        sset.insert(s.sset.begin(), s.sset.end());
+    }
+
+    typename set<T>::reverse_iterator srbegin() {
+        return sset.rbegin();
+    }
+
+    typename set<T>::reverse_iterator srend() {
+        return sset.rend();
+    }
+
+    bool has(const T &arg) {
+        return uset.find(arg) != uset.end();
+    }
+
+    size_t size() {
+        return uset.size();
+    }
+
+    void clear() {
+        uset.clear();
+        sset.clear();
+    }
+};
+
 struct Index {
-    unordered_set<i> all;
-    unordered_set<i> is_f;
-    unordered_set<i> is_m;
-    unordered_set<i> has_active_premium;
+    IndexSet<i> all;
+    IndexSet<i> is_f;
+    IndexSet<i> is_m;
+    IndexSet<i> has_active_premium;
 
     map<string, i> email_cmp;
     map<t, i> birth_cmp;
 
-    unordered_set<i> fname_null;
-    unordered_set<i> sname_null;
-    unordered_set<i> phone_null;
-    unordered_set<i> country_null;
-    unordered_set<i> city_null;
-    unordered_set<i> premium_null;
+    IndexSet<i> fname_null;
+    IndexSet<i> sname_null;
+    IndexSet<i> phone_null;
+    IndexSet<i> country_null;
+    IndexSet<i> city_null;
+    IndexSet<i> premium_null;
 
-    unordered_map<string, unordered_set<i> > email_domain_index;
-    unordered_set<i> status_indexes[3];
-    unordered_map<string, unordered_set<i> > fname_index;
-    unordered_map<string, unordered_set<i> > sname_index;
-    unordered_map<string, unordered_set<i> > phone_index;
-    unordered_map<string, unordered_set<i> > country_index;
-    unordered_map<string, unordered_set<i> > city_index;
-    unordered_map<year_t, unordered_set<i> > year_index;
-    unordered_map<string, unordered_set<i> > interests_index;
-    unordered_map<i, unordered_set<i> > like_index;
+    unordered_map<string, IndexSet<i> > email_domain_index;
+    IndexSet<i> status_indexes[3];
+    unordered_map<string, IndexSet<i> > fname_index;
+    unordered_map<string, IndexSet<i> > sname_index;
+    unordered_map<string, IndexSet<i> > phone_index;
+    unordered_map<string, IndexSet<i> > country_index;
+    unordered_map<string, IndexSet<i> > city_index;
+    unordered_map<year_t, IndexSet<i> > year_index;
+    unordered_map<string, IndexSet<i> > interests_index;
+    unordered_map<i, IndexSet<i> > like_index;
 
-    TrieNode<i> sname_prefix_trie;
+    TrieNode<IndexSet<i> > sname_prefix_trie;
 };
 
 string account_field_value(Account& account, Field field) {

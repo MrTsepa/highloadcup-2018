@@ -9,20 +9,20 @@
 
 using namespace std;
 
-unordered_set<i> email_lt_set;
-unordered_set<i> email_gt_set;
-unordered_set<i> birth_lt_set;
-unordered_set<i> birth_gt_set;
-unordered_set<i> fname_any_set;
-unordered_set<i> city_any_set;
-unordered_set<i> interests_any_set;
+IndexSet<i> email_lt_set;
+IndexSet<i> email_gt_set;
+IndexSet<i> birth_lt_set;
+IndexSet<i> birth_gt_set;
+IndexSet<i> fname_any_set;
+IndexSet<i> city_any_set;
+IndexSet<i> interests_any_set;
 
 
 int filter_query_parse(
         const char *query,
         Index &index,
-        vector<unordered_set<i> *> &sets,
-        vector<unordered_set<i> *> &neg_sets,
+        vector<IndexSet<i> *> &sets,
+        vector<IndexSet<i> *> &neg_sets,
         long *limit,
         set<Field> &fields
 ) {
@@ -171,7 +171,7 @@ int filter_query_parse(
                                 auto lower = index.email_cmp.lower_bound(val);
                                 email_lt_set.clear();
                                 for (auto it = index.email_cmp.begin(); it != lower; it++) {
-                                    email_lt_set.emplace(it->second);
+                                    email_lt_set.emplace_no_sset(it->second);
                                 }
                                 sets.emplace_back(&email_lt_set);
                                 break;
@@ -180,7 +180,7 @@ int filter_query_parse(
                                 auto upper = index.email_cmp.upper_bound(val);
                                 email_gt_set.clear();
                                 for (auto it = upper; it != index.email_cmp.end(); it++) {
-                                    email_gt_set.emplace(it->second);
+                                    email_gt_set.emplace_no_sset(it->second);
                                 }
                                 sets.emplace_back(&email_gt_set);
                                 break;
@@ -224,8 +224,8 @@ int filter_query_parse(
                                 size_t start = 0;
                                 while (true) {
                                     auto at = val.find(',', start);
-                                    const unordered_set<i>* s = &index.fname_index[val.substr(start, at - start)];
-                                    fname_any_set.insert(s->begin(), s->end());
+                                    IndexSet<i>* s = &index.fname_index[val.substr(start, at - start)];
+                                    fname_any_set.insert(*s);
                                     start = at + 1;
                                     if (at == string::npos) break;
                                 }
@@ -254,7 +254,6 @@ int filter_query_parse(
                             }
                             case STARTS: {
                                 sets.emplace_back(trie_prefix_set_ptr(index.sname_prefix_trie, val, 0));
-
                                 break;
                             }
                             case NULL_: {
@@ -328,8 +327,8 @@ int filter_query_parse(
                                 size_t start = 0;
                                 while (true) {
                                     auto at = val.find(',', start);
-                                    const unordered_set<i>* s = &index.city_index[val.substr(start, at - start)];
-                                    city_any_set.insert(s->begin(), s->end());
+                                    IndexSet<i>* s = &index.city_index[val.substr(start, at - start)];
+                                    city_any_set.insert(*s);
                                     start = at + 1;
                                     if (at == string::npos) break;
                                 }
@@ -361,7 +360,7 @@ int filter_query_parse(
                                 auto lower = index.birth_cmp.lower_bound(long_val);
                                 birth_lt_set.clear();
                                 for (auto it = index.birth_cmp.begin(); it != lower; it++) {
-                                    birth_lt_set.emplace(it->second);
+                                    birth_lt_set.emplace_no_sset(it->second);
                                 }
                                 sets.emplace_back(&birth_lt_set);
                                 break;
@@ -370,7 +369,7 @@ int filter_query_parse(
                                 auto upper = index.birth_cmp.upper_bound(long_val);
                                 birth_gt_set.clear();
                                 for (auto it = upper; it != index.birth_cmp.end(); it++) {
-                                    birth_gt_set.emplace(it->second);
+                                    birth_gt_set.emplace_no_sset(it->second);
                                 }
                                 sets.emplace_back(&birth_gt_set);
                                 break;
@@ -400,8 +399,8 @@ int filter_query_parse(
                                 size_t start = 0;
                                 while (true) {
                                     auto at = val.find(',', start);
-                                    const unordered_set<i>* s = &index.interests_index[val.substr(start, at - start)];
-                                    interests_any_set.insert(s->begin(), s->end());
+                                    IndexSet<i>* s = &index.interests_index[val.substr(start, at - start)];
+                                    interests_any_set.insert(*s);
                                     start = at + 1;
                                     if (at == string::npos) break;
                                 }

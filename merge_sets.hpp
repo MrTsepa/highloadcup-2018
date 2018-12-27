@@ -8,6 +8,14 @@
 
 using namespace std;
 
+template <typename T>
+void print_set(set<T> &s) {
+    for (auto &item : s) {
+        cout << item << ' ';
+    }
+    cout << endl;
+}
+
 void add_to_limited_set(set<i> &s, const i &item, long limit) {
     if (s.size() < limit) {
         s.emplace(item);
@@ -20,8 +28,8 @@ void add_to_limited_set(set<i> &s, const i &item, long limit) {
 }
 
 void merge_sets(
-        vector<unordered_set<i> *> &sets,
-        vector<unordered_set<i> *> &neg_sets,
+        vector<IndexSet<i> *> &sets,
+        vector<IndexSet<i> *> &neg_sets,
         long limit,
         set<i> &result
 ) {
@@ -29,33 +37,37 @@ void merge_sets(
         size_t min_size = sets[0]->size();
         size_t k_min = 0;
         for (size_t k = 1; k < sets.size(); k++) {
-            if (min_size > sets[k]->size()) {
+            if (min_size > sets[k]->size() and !sets[k]->no_sset) {
                 min_size = sets[k]->size();
                 k_min = k;
             }
         }
-        for (const auto &item : *sets[k_min]) {
+        for (auto iter = sets[k_min]->srbegin(); iter != sets[k_min]->srend(); iter++) {
             bool good = true;
-            for (size_t k = 0; k < sets.size(); k++) {
+            for (size_t k = 1; k < sets.size(); k++) {
                 if (k == k_min) {
                     continue;
                 }
-                if (sets[k]->find(item) == sets[k]->end()) {
+                if (!sets[k]->has(*iter)) {
                     good = false;
                     break;
                 }
             }
             if (good) {
                 for (const auto &neg_set : neg_sets) {
-                    if (neg_set->find(item) != neg_set->end()) {
+                    if (neg_set->has(*iter)) {
                         good = false;
                         break;
                     }
                 }
             }
             if (good) {
-//                result.emplace(item);
-                add_to_limited_set(result, item, limit);
+                result.emplace(*iter);
+//                print_set(result);
+                if (result.size() == limit) {
+                    return;
+                }
+//                add_to_limited_set(result, *iter, limit);
             }
         }
     }

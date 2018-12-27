@@ -2,19 +2,20 @@
 
 #include <unordered_map>
 
+
 using namespace std;
 
 template <typename T>
-unordered_set<T> empty_set;
+T empty_set;
 
 template <typename T>
 struct TrieNode {
     unordered_map<char, TrieNode<T>* > children;
-    unordered_set<T> prefix_set;
+    T prefix_set;
 };
 
-template <typename T>
-void trie_insert(TrieNode<T> &node, string &s, size_t pos, T &val) {
+template <typename T, typename V>
+void trie_insert(TrieNode<T> &node, string &s, size_t pos, V &val) {
     if (pos > s.size()) {
         return;
     }
@@ -26,7 +27,7 @@ void trie_insert(TrieNode<T> &node, string &s, size_t pos, T &val) {
 }
 
 template <typename T>
-unordered_set<T>* trie_prefix_set_ptr(TrieNode<T> &node, string s, size_t pos) {
+T* trie_prefix_set_ptr(TrieNode<T> &node, string s, size_t pos) {
     if (pos == s.size()) {
         return &node.prefix_set;
     }
