@@ -30,6 +30,7 @@ void add_to_limited_set(set<i> &s, const i &item, long limit) {
 void merge_sets(
         vector<IndexSet<i> *> &sets,
         vector<IndexSet<i> *> &neg_sets,
+        vector<vector<IndexSet<i> *> *> &any_sets,
         long limit,
         set<i> &result
 ) {
@@ -56,6 +57,21 @@ void merge_sets(
             if (good) {
                 for (const auto &neg_set : neg_sets) {
                     if (neg_set->has(*iter)) {
+                        good = false;
+                        break;
+                    }
+                }
+            }
+            if (good) {
+                for (const auto &any_set_vec: any_sets) {
+                    bool flag = false;
+                    for (const auto &any_set : *any_set_vec) {
+                        if (any_set->has(*iter)) {
+                            flag = true;
+                            break;
+                        }
+                    }
+                    if (!flag) {
                         good = false;
                         break;
                     }

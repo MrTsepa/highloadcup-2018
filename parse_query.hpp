@@ -13,9 +13,9 @@ IndexSet<i> email_lt_set;
 IndexSet<i> email_gt_set;
 IndexSet<i> birth_lt_set;
 IndexSet<i> birth_gt_set;
-IndexSet<i> fname_any_set;
-IndexSet<i> city_any_set;
-IndexSet<i> interests_any_set;
+vector<IndexSet<i> *> fname_any_vector;
+vector<IndexSet<i> *> city_any_vector;
+vector<IndexSet<i> *> interests_any_vector;
 
 
 int filter_query_parse(
@@ -23,6 +23,7 @@ int filter_query_parse(
         Index &index,
         vector<IndexSet<i> *> &sets,
         vector<IndexSet<i> *> &neg_sets,
+        vector<vector<IndexSet<i> *> *> &any_sets,
         long *limit,
         set<Field> &fields
 ) {
@@ -220,16 +221,15 @@ int filter_query_parse(
                                 break;
                             }
                             case ANY: {
-                                fname_any_set.clear();
+                                fname_any_vector.clear();
                                 size_t start = 0;
                                 while (true) {
                                     auto at = val.find(',', start);
-                                    IndexSet<i>* s = &index.fname_index[val.substr(start, at - start)];
-                                    fname_any_set.insert(*s);
+                                    fname_any_vector.emplace_back(&index.fname_index[val.substr(start, at - start)]);
                                     start = at + 1;
                                     if (at == string::npos) break;
                                 }
-                                sets.emplace_back(&fname_any_set);
+                                any_sets.emplace_back(&fname_any_vector);
                                 break;
                             }
                             case NULL_: {
@@ -323,16 +323,15 @@ int filter_query_parse(
                                 break;
                             }
                             case ANY: {
-                                city_any_set.clear();
+                                city_any_vector.clear();
                                 size_t start = 0;
                                 while (true) {
                                     auto at = val.find(',', start);
-                                    IndexSet<i>* s = &index.city_index[val.substr(start, at - start)];
-                                    city_any_set.insert(*s);
+                                    city_any_vector.emplace_back(&index.city_index[val.substr(start, at - start)]);
                                     start = at + 1;
                                     if (at == string::npos) break;
                                 }
-                                sets.emplace_back(&city_any_set);
+                                any_sets.emplace_back(&city_any_vector);
                                 break;
                             }
                             case NULL_: {
@@ -395,16 +394,15 @@ int filter_query_parse(
                                 break;
                             }
                             case ANY: {
-                                interests_any_set.clear();
+                                interests_any_vector.clear();
                                 size_t start = 0;
                                 while (true) {
                                     auto at = val.find(',', start);
-                                    IndexSet<i>* s = &index.interests_index[val.substr(start, at - start)];
-                                    interests_any_set.insert(*s);
+                                    interests_any_vector.emplace_back(&index.interests_index[val.substr(start, at - start)]);
                                     start = at + 1;
                                     if (at == string::npos) break;
                                 }
-                                sets.emplace_back(&interests_any_set);
+                                any_sets.emplace_back(&interests_any_vector);
                                 break;
                             }
                             default: return -1;

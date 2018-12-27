@@ -20,6 +20,7 @@ Index ind;
 
 vector<IndexSet<i> *> sets;
 vector<IndexSet<i> *> neg_sets;
+vector<vector<IndexSet<i> *> *> any_sets;
 set<i> merge_result;
 
 void filter(evhttp_request *request, void *params) {
@@ -29,6 +30,7 @@ void filter(evhttp_request *request, void *params) {
     merge_result.clear();
     sets.clear();
     neg_sets.clear();
+    any_sets.clear();
     sets.emplace_back(&ind.all);
     set<Field> fields = set<Field> {ID, EMAIL};
     if (filter_query_parse(
@@ -36,6 +38,7 @@ void filter(evhttp_request *request, void *params) {
             ind,
             sets,
             neg_sets,
+            any_sets,
             &limit,
             fields
         ) != 0) {
@@ -46,7 +49,7 @@ void filter(evhttp_request *request, void *params) {
         evhttp_send_reply(request, HTTP_BADREQUEST, nullptr, nullptr);
         return;
     }
-    merge_sets(sets, neg_sets, limit, merge_result);
+    merge_sets(sets, neg_sets, any_sets, limit, merge_result);
 
     evbuffer *buffer;
     buffer = evbuffer_new();

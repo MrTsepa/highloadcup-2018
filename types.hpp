@@ -72,11 +72,6 @@ struct IndexSet {
         uset.emplace(arg);
     }
 
-    void insert(IndexSet<T> &s) {
-        uset.insert(s.uset.begin(), s.uset.end());
-        sset.insert(s.sset.begin(), s.sset.end());
-    }
-
     typename set<T>::reverse_iterator srbegin() {
         return sset.rbegin();
     }
