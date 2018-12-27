@@ -36,11 +36,6 @@ struct Account {
     bool has_premium = false;
 };
 
-struct Like {
-    i to;
-    t time;
-};
-
 enum Field {
     ID, SEX, EMAIL, STATUS, FNAME, SNAME, PHONE, COUNTRY,
     CITY, BIRTH, INTERESTS, LIKES, PREMIUM, QUERY_ID, LIMIT

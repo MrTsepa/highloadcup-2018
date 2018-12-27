@@ -377,6 +377,7 @@ int filter_query_parse(
                             }
                             case YEAR: {
                                 sets.emplace_back(&index.year_index[long_val]);
+                                break;
                             }
                             default: return -1;
                         }
@@ -386,11 +387,11 @@ int filter_query_parse(
                         switch (pred) {
                             case CONTAINS: {
                                 size_t start = 0;
-                                auto at = val.find(',');
-                                while (at != string::npos) {
+                                while (true) {
+                                    auto at = val.find(',', start);
                                     sets.emplace_back(&index.interests_index[val.substr(start, at - start)]);
                                     start = at + 1;
-                                    at = val.find(',', start);
+                                    if (at == string::npos) break;
                                 }
                                 break;
                             }
@@ -415,8 +416,8 @@ int filter_query_parse(
                         switch (pred) {
                             case CONTAINS: {
                                 size_t start = 0;
-                                auto at = val.find(',');
-                                while (at != string::npos) {
+                                while (true) {
+                                    auto at = val.find(',', start);
                                     char *err;
                                     const long like = strtol(val.substr(start, at - start).c_str(), &err, 10);
                                     if (*err != 0) {
@@ -424,7 +425,7 @@ int filter_query_parse(
                                     }
                                     sets.emplace_back(&index.like_index[like]);
                                     start = at + 1;
-                                    at = val.find(',', start);
+                                    if (at == string::npos) break;
                                 }
                                 break;
                             }

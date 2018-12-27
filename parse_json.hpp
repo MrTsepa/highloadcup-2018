@@ -9,7 +9,7 @@
 
 using namespace std;
 
-void parse_json(unordered_map<i, Account>& accounts_map, unordered_map<i, Like>& like_map) {
+void parse_json(unordered_map<i, Account>& accounts_map, unordered_map<i, unordered_map<i, t> >& like_map) {
     for (int j = 1;; j++) {
         char path[20];
         sprintf(path, "accounts_%d.json", j);
@@ -92,11 +92,11 @@ void parse_json(unordered_map<i, Account>& accounts_map, unordered_map<i, Like>&
 
             if (json_account.HasMember("likes")) {
                 for (const auto &json_like : json_account["likes"].GetArray()) {
-                    Like like{};
-                    auto from = static_cast<unsigned int>(json_account["id"].GetInt());
-                    like.to = static_cast<unsigned int>(json_like["id"].GetInt());
-                    like.time = json_like["ts"].GetInt();
-                    like_map[from] = like;
+
+                    i from = static_cast<unsigned int>(json_account["id"].GetInt());
+                    i to = static_cast<unsigned int>(json_like["id"].GetInt());
+                    t time = json_like["ts"].GetInt();
+                    like_map[from].emplace(to, time);
                 }
             }
         }

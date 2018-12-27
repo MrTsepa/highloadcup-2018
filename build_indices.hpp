@@ -5,7 +5,7 @@
 
 void build_indices(
         unordered_map<i, Account> &account_map,
-        unordered_map<i, Like> &like_map,
+        unordered_map<i, unordered_map<i, t> > &like_map,
         Index &index
 ) {
     const t CURRENT_TIME = read_time();
@@ -71,7 +71,9 @@ void build_indices(
         index.like_index[account.id] = unordered_set<uint>();
     }
 
-    for (const auto &it : like_map) {
-        index.like_index[it.second.to].emplace(it.first);
+    for (const auto &item : like_map) {
+        for (const auto &item1 : item.second) {
+            index.like_index[item1.first].emplace(item.first);
+        }
     }
 }

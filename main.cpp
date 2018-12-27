@@ -14,7 +14,7 @@
 using namespace std;
 
 unordered_map<i, Account> account_map;
-unordered_map<i, Like> like_map;
+unordered_map<i, unordered_map<i, t> > like_map;
 
 Index ind;
 
@@ -135,6 +135,7 @@ int main() {
     t = chrono::system_clock::now();
     parse_json(account_map, like_map);
     cout << static_cast<chrono::duration<double>>(chrono::system_clock::now() - t).count() << endl;
+    cout << account_map.size() << ' ' << like_map.size() << endl;
     t = chrono::system_clock::now();
     build_indices(account_map, like_map, ind);
     cout << static_cast<chrono::duration<double>>(chrono::system_clock::now() - t).count() << endl;
