@@ -381,24 +381,6 @@ int filter_query_parse(
                             return -1;
                         }
                         switch (pred) {
-//                            case LT: {
-//                                auto lower = index.birth_cmp.lower_bound(long_val);
-//                                birth_lt_set.clear();
-//                                for (auto it = index.birth_cmp.begin(); it != lower; it++) {
-//                                    birth_lt_set.emplace_no_sset(it->second);
-//                                }
-//                                sets.emplace_back(&birth_lt_set);
-//                                break;
-//                            }
-//                            case GT: {
-//                                auto upper = index.birth_cmp.upper_bound(long_val);
-//                                birth_gt_set.clear();
-//                                for (auto it = upper; it != index.birth_cmp.end(); it++) {
-//                                    birth_gt_set.emplace_no_sset(it->second);
-//                                }
-//                                sets.emplace_back(&birth_gt_set);
-//                                break;
-//                            }
                             case LT: {
                                 auto lower = index.birth_cmp.lower_bound(long_val);
                                 size_t j = 0;
