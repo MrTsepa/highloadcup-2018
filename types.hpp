@@ -94,8 +94,8 @@ struct IndexSet {
     }
 };
 
-const size_t SPLIT_LEN = 100;
-const size_t SPLIT_COUNT = 300;
+const size_t SPLIT_LEN = 600;
+const size_t SPLIT_COUNT = 50;
 
 struct Index {
     IndexSet<i> all;
