@@ -57,6 +57,7 @@ void build_indices(
         }
         year_t year = get_year(account.birth);
         index.year_index[year].emplace(account.id);
+        index.joined_year_index[get_year(account.joined)].emplace(account.id);
 
         for (const auto &interest : account.interests) {
             index.interests_index[interest].emplace(account.id);

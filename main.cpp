@@ -8,7 +8,8 @@
 #include "utils.hpp"
 #include "parse_json.hpp"
 #include "build_indices.hpp"
-#include "parse_query.hpp"
+#include "filter_query_parse.hpp"
+#include "group_query_parse.hpp"
 #include "merge_sets.hpp"
 
 using namespace std;
@@ -22,11 +23,65 @@ vector<IndexSet<i> *> sets;
 vector<IndexSet<i> *> neg_sets;
 vector<vector<IndexSet<i> *> *> any_sets;
 set<i> merge_result;
+unordered_set<i> intersection_result;
+
+void group(evhttp_request *request, void *params) {
+    const char *query = evhttp_uridecode(strchr(request->uri, '?') + 1, 1, nullptr);
+    long limit = 0;
+    bool order = true;
+    set<Field> fields;
+    vector<Field> keys;
+    if (group_query_parse(
+            query,
+            ind,
+            sets,
+            &limit,
+            &order,
+            fields,
+            keys
+        ) != 0) {
+        evhttp_add_header(evhttp_request_get_output_headers(request),
+                          "Content-Type", "text/plain");
+        evhttp_add_header(evhttp_request_get_output_headers(request),
+                          "Connection", "Keep-Alive");
+        evhttp_send_reply(request, HTTP_BADREQUEST, nullptr, nullptr);
+        sets.clear();
+        return;
+    }
+
+    intersection(sets, intersection_result);
+
+    evbuffer *buffer;
+    buffer = evbuffer_new();
+    evbuffer_add_printf(buffer, "{\"groups\": [");
+
+    if (keys.size() == 1) {
+        switch (keys[0]) {
+            case SEX: {
+                evbuffer_add_printf(
+                        buffer,
+                        "{\"sex\":\"m\",\"count\":%zu},{\"sex\":\"f\",\"count\":%zu}",
+                        intersection_size(intersection_result, ind.is_m.uset),
+                        intersection_size(intersection_result, ind.is_f.uset)
+                        );
+                break;
+            }
+        }
+    }
+    evbuffer_add_printf(buffer, "]}");
+    evhttp_add_header(evhttp_request_get_output_headers(request),
+                      "Content-Type", "application/json");
+    evhttp_add_header(evhttp_request_get_output_headers(request),
+                      "Connection", "Keep-Alive");
+    evhttp_send_reply(request, HTTP_OK, "OK", buffer);
+    evbuffer_free(buffer);
+    sets.clear();
+    intersection_result.clear();
+}
 
 void filter(evhttp_request *request, void *params) {
     long limit = 0;
     const char *query = evhttp_uridecode(strchr(request->uri, '?') + 1, 1, nullptr);
-//    cout << query << endl;
     sets.emplace_back(&ind.all);
     set<Field> fields = set<Field> {ID, EMAIL};
     if (filter_query_parse(
@@ -43,7 +98,6 @@ void filter(evhttp_request *request, void *params) {
         evhttp_add_header(evhttp_request_get_output_headers(request),
                           "Connection", "Keep-Alive");
         evhttp_send_reply(request, HTTP_BADREQUEST, nullptr, nullptr);
-        merge_result.clear();
         sets.clear();
         neg_sets.clear();
         any_sets.clear();
@@ -124,6 +178,7 @@ void start_server(char *host, uint16_t port) {
     ebase = event_base_new();
     server = evhttp_new(ebase);
     evhttp_set_cb(server, "/accounts/filter/", filter, nullptr);
+    evhttp_set_cb(server, "/accounts/group/", group, nullptr);
     evhttp_set_gencb(server, notfound, nullptr);
 
     if (evhttp_bind_socket(server, host, port) != 0) {

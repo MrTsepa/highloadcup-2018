@@ -39,7 +39,8 @@ struct Account {
 
 enum Field {
     ID, SEX, EMAIL, STATUS, FNAME, SNAME, PHONE, COUNTRY,
-    CITY, BIRTH, INTERESTS, LIKES, PREMIUM, QUERY_ID, LIMIT
+    CITY, BIRTH, INTERESTS, LIKES, PREMIUM, QUERY_ID, LIMIT,
+    ORDER, KEYS, JOINED
 };
 
 map<Field, string> field_string = {
@@ -124,6 +125,7 @@ struct Index {
     unordered_map<string, IndexSet<i> > country_index;
     unordered_map<string, IndexSet<i> > city_index;
     unordered_map<year_t, IndexSet<i> > year_index;
+    unordered_map<year_t, IndexSet<i> > joined_year_index;
     unordered_map<string, IndexSet<i> > interests_index;
     unordered_map<i, IndexSet<i> > like_index;
 

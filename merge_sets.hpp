@@ -7,24 +7,50 @@
 #include "types.hpp"
 
 using namespace std;
-
-template <typename T>
-void print_set(set<T> &s) {
-    for (auto &item : s) {
-        cout << item << ' ';
-    }
-    cout << endl;
-}
-
-void add_to_limited_set(set<i> &s, const i &item, long limit) {
-    if (s.size() < limit) {
-        s.emplace(item);
-    } else {
-        if (*s.begin() < item) {
-            s.emplace(item);
-            s.erase(s.begin());
+void intersection(
+        vector<IndexSet<i> *> &sets,
+        unordered_set<i> &result
+) {
+    if (!sets.empty()) {
+        size_t min_size = sets[0]->size();
+        size_t k_min = 0;
+        for (size_t k = 1; k < sets.size(); k++) {
+            if (min_size > sets[k]->size() and !sets[k]->no_sset) {
+                min_size = sets[k]->size();
+                k_min = k;
+            }
+        }
+        for (auto iter = sets[k_min]->srbegin(); iter != sets[k_min]->srend(); iter++) {
+            bool good = true;
+            for (size_t k = 0; k < sets.size(); k++) {
+                if (k == k_min) {
+                    continue;
+                }
+                if (!sets[k]->has(*iter)) {
+                    good = false;
+                    break;
+                }
+            }
+            if (good) {
+                result.emplace(*iter);
+            }
         }
     }
+}
+
+size_t intersection_size(
+        unordered_set<i> &set1,
+        unordered_set<i> &set2
+) {
+    auto& s1 = set1.size() < set2.size() ? set1 : set2;
+    auto& s2 = set1.size() < set2.size() ? set2 : set1;
+    size_t res = 0;
+    for (auto &item : s1) {
+        if (s2.find(item) != s2.end()) {
+            ++res;
+        }
+    }
+    return res;
 }
 
 void merge_sets(
@@ -79,11 +105,9 @@ void merge_sets(
             }
             if (good) {
                 result.emplace(*iter);
-//                print_set(result);
                 if (result.size() == limit) {
                     return;
                 }
-//                add_to_limited_set(result, *iter, limit);
             }
         }
     }
