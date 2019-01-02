@@ -25,12 +25,16 @@ vector<vector<IndexSet<i> *> *> any_sets;
 set<i> merge_result;
 unordered_set<i> intersection_result;
 
+set<pair<size_t, string>> groups;
+vector<pair<unordered_set<i> *, string>> aaa;
+
 void group(evhttp_request *request, void *params) {
     const char *query = evhttp_uridecode(strchr(request->uri, '?') + 1, 1, nullptr);
     long limit = 0;
     bool order = true;
     set<Field> fields;
     vector<Field> keys;
+    sets.emplace_back(&ind.all);
     if (group_query_parse(
             query,
             ind,
@@ -54,18 +58,180 @@ void group(evhttp_request *request, void *params) {
     evbuffer *buffer;
     buffer = evbuffer_new();
     evbuffer_add_printf(buffer, "{\"groups\": [");
-
     if (keys.size() == 1) {
         switch (keys[0]) {
             case SEX: {
-                evbuffer_add_printf(
-                        buffer,
-                        "{\"sex\":\"m\",\"count\":%zu},{\"sex\":\"f\",\"count\":%zu}",
-                        intersection_size(intersection_result, ind.is_m.uset),
-                        intersection_size(intersection_result, ind.is_f.uset)
-                        );
+                size_t m = intersection_size(intersection_result, ind.is_m.uset);
+                size_t f = intersection_result.size() - m;
+                groups.emplace(m, "\"sex\":\"m\",");
+                groups.emplace(f, "\"sex\":\"f\",");
                 break;
             }
+            case STATUS: {
+                size_t s0 = intersection_size(intersection_result, ind.status_indices[0].uset);
+                size_t s1 = intersection_size(intersection_result, ind.status_indices[1].uset);
+                size_t s2 = intersection_result.size() - s0 - s1;
+                groups.emplace(s0, "\"status\":\"свободны\",");
+                groups.emplace(s1, "\"status\":\"всё сложно\",");
+                groups.emplace(s2, "\"status\":\"заняты\",");
+                break;
+            }
+            case COUNTRY: {
+                for (auto &item : ind.country_index) {
+                    size_t size = intersection_size(intersection_result, item.second.uset);
+                    if (size != 0) {
+                        groups.emplace(size, "\"country\":\"" + item.first + "\",");
+                    }
+                }
+                groups.emplace(intersection_size(intersection_result, ind.country_null.uset), "");
+                break;
+            }
+            case CITY: {
+                for (auto &item : ind.city_index) {
+                    size_t size = intersection_size(intersection_result, item.second.uset);
+                    if (size != 0) {
+                        groups.emplace(size, "\"city\":\"" + item.first + "\",");
+                    }
+                }
+                groups.emplace(intersection_size(intersection_result, ind.city_null.uset), "");
+                break;
+            }
+            case INTERESTS: {
+                for (auto &item : ind.interests_index) {
+                    size_t size = intersection_size(intersection_result, item.second.uset);
+                    if (size != 0) {
+                        groups.emplace(size, "\"interests\":\"" + item.first + "\",");
+                    }
+                }
+                break;
+            }
+        }
+    } else {
+        switch (keys[0]) {
+            case SEX: {
+                aaa.emplace_back(&ind.is_m.uset, "\"sex\":\"m\",");
+                aaa.emplace_back(&ind.is_f.uset, "\"sex\":\"f\",");
+                break;
+            }
+            case STATUS: {
+                aaa.emplace_back(&ind.status_indices[0].uset, "\"status\":\"свободны\",");
+                aaa.emplace_back(&ind.status_indices[1].uset, "\"status\":\"всё сложно\",");
+                aaa.emplace_back(&ind.status_indices[2].uset, "\"status\":\"заняты\",");
+                break;
+            }
+            case COUNTRY: {
+                for (auto &item : ind.country_index) {
+                    aaa.emplace_back(&item.second.uset, "\"country\":\"" + item.first + "\",");
+                }
+                aaa.emplace_back(&ind.country_null.uset, "");
+                break;
+            }
+            case CITY: {
+                for (auto &item : ind.city_index) {
+                    aaa.emplace_back(&item.second.uset, "\"city\":\"" + item.first + "\",");
+                }
+                aaa.emplace_back(&ind.city_null.uset, "");
+                break;
+            }
+            case INTERESTS: {
+                for (auto &item : ind.interests_index) {
+                    aaa.emplace_back(&item.second.uset, "\"country\":\"" + item.first + "\",");
+                }
+                break;
+            }
+            default:
+                return;
+        }
+        for (auto &aitem : aaa) {
+            switch (keys[1]) {
+                case SEX: {
+                    size_t m = intersection_size3(intersection_result, ind.is_m.uset, *aitem.first);
+                    size_t f = intersection_result.size() - m;
+                    groups.emplace(m, aitem.second + "\"sex\":\"m\",");
+                    groups.emplace(f, aitem.second + "\"sex\":\"f\",");
+                    break;
+                }
+                case STATUS: {
+                    size_t s0 = intersection_size3(intersection_result, ind.status_indices[0].uset, *aitem.first);
+                    size_t s1 = intersection_size3(intersection_result, ind.status_indices[1].uset, *aitem.first);
+                    size_t s2 = intersection_result.size() - s0 - s1;
+                    groups.emplace(s0, aitem.second + "\"status\":\"свободны\",");
+                    groups.emplace(s1, aitem.second + "\"status\":\"всё сложно\",");
+                    groups.emplace(s2, aitem.second + "\"status\":\"заняты\",");
+                    break;
+                }
+                case COUNTRY: {
+                    for (auto &item : ind.country_index) {
+                        size_t size = intersection_size3(intersection_result, item.second.uset, *aitem.first);
+                        if (size != 0) {
+                            groups.emplace(size, aitem.second + "\"country\":\"" + item.first + "\",");
+                        }
+                    }
+                    groups.emplace(intersection_size3(intersection_result, ind.country_null.uset, *aitem.first), "");
+                    break;
+                }
+                case CITY: {
+                    for (auto &item : ind.city_index) {
+                        size_t size = intersection_size3(intersection_result, item.second.uset, *aitem.first);
+                        if (size != 0) {
+                            groups.emplace(size, aitem.second + "\"city\":\"" + item.first + "\",");
+                        }
+                    }
+                    groups.emplace(intersection_size3(intersection_result, ind.city_null.uset, *aitem.first), "");
+                    break;
+                }
+                case INTERESTS: {
+                    for (auto &item : ind.interests_index) {
+                        size_t size = intersection_size3(intersection_result, item.second.uset, *aitem.first);
+                        if (size != 0) {
+                            groups.emplace(size, aitem.second + "\"interests\":\"" + item.first + "\",");
+                        }
+                    }
+                    break;
+                }
+                default: return;
+            }
+        }
+    }
+    if (order) {
+        size_t k = 0;
+        for (auto it = groups.begin(); it != groups.end(); it++) {
+            if (k == limit) {
+                break;
+            }
+            if (it->first == 0) {
+                continue;
+            }
+            if (k > 0) {
+                evbuffer_add_printf(buffer, ",");
+            }
+            evbuffer_add_printf(
+                    buffer,
+                    "{%s\"count\":%zu}",
+                    it->second.c_str(),
+                    it->first
+            );
+            k++;
+        }
+    } else {
+        size_t k = 0;
+        for (auto it = groups.rbegin(); it != groups.rend(); it++) {
+            if (k == limit) {
+                break;
+            }
+            if (it->first == 0) {
+                break;
+            }
+            if (k > 0) {
+                evbuffer_add_printf(buffer, ",");
+            }
+            evbuffer_add_printf(
+                    buffer,
+                    "{%s\"count\":%zu}",
+                    it->second.c_str(),
+                    it->first
+            );
+            k++;
         }
     }
     evbuffer_add_printf(buffer, "]}");
@@ -77,6 +243,8 @@ void group(evhttp_request *request, void *params) {
     evbuffer_free(buffer);
     sets.clear();
     intersection_result.clear();
+    groups.clear();
+    aaa.clear();
 }
 
 void filter(evhttp_request *request, void *params) {
@@ -192,7 +360,9 @@ void start_server(char *host, uint16_t port) {
 int main() {
     chrono::time_point<chrono::system_clock> t;
     t = chrono::system_clock::now();
-    unzip();
+    if (getenv("REUSE_UNZIP")[0] == '0') {
+        unzip();
+    }
     cout << static_cast<chrono::duration<double>>(chrono::system_clock::now() - t).count() << endl;
     t = chrono::system_clock::now();
     parse_json(account_map, like_map);

@@ -130,7 +130,7 @@ int group_query_parse(
                                 status = 2;
                             }
                         }
-                        sets.emplace_back(&index.status_indexes[status]);
+                        sets.emplace_back(&index.status_indices[status]);
                         break;
                     }
                     case FNAME: {

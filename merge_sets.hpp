@@ -53,6 +53,24 @@ size_t intersection_size(
     return res;
 }
 
+size_t intersection_size3(
+        unordered_set<i> &set1,
+        unordered_set<i> &set2,
+        unordered_set<i> &set3
+) {
+    auto& s01 = set1.size() < set2.size() ? set1 : set2;
+    auto& s1 = set3.size() < s01.size() ? set3 : set1;
+    auto& s2 = set3.size() < s01.size() ? set1 : set2;
+    auto& s3 = set3.size() < s01.size() ? set2 : set3;
+    size_t res = 0;
+    for (auto &item : s1) {
+        if (s2.find(item) != s2.end() && s3.find(item) != s3.end()) {
+            ++res;
+        }
+    }
+    return res;
+}
+
 void merge_sets(
         vector<IndexSet<i> *> &sets,
         vector<IndexSet<i> *> &neg_sets,

@@ -118,7 +118,7 @@ struct Index {
     IndexSet<i> premium_null;
 
     unordered_map<string, IndexSet<i> > email_domain_index;
-    IndexSet<i> status_indexes[3];
+    IndexSet<i> status_indices[3];
     unordered_map<string, IndexSet<i> > fname_index;
     unordered_map<string, IndexSet<i> > sname_index;
     unordered_map<string, IndexSet<i> > phone_index;

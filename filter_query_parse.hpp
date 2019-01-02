@@ -228,11 +228,11 @@ int filter_query_parse(
                         }
                         switch (pred) {
                             case EQ: {
-                                sets.emplace_back(&index.status_indexes[status]);
+                                sets.emplace_back(&index.status_indices[status]);
                                 break;
                             }
                             case NEQ: {
-                                neg_sets.emplace_back(&index.status_indexes[status]);
+                                neg_sets.emplace_back(&index.status_indices[status]);
                                 break;
                             }
                             default:

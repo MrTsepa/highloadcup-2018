@@ -24,7 +24,7 @@ void build_indices(
         string domain = account.email.substr(account.email.find('@') + 1);
         index.email_domain_index[domain].emplace(account.id);
 
-        index.status_indexes[account.status].emplace(account.id);
+        index.status_indices[account.status].emplace(account.id);
 
         if (!account.fname.empty()) {
             index.fname_index[account.fname].emplace(account.id);
