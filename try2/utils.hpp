@@ -26,3 +26,31 @@ t_t read_time() {
     ifs >> time;
     return time;
 }
+
+bool convert_sex(const char c) {
+    return c == 'f';
+}
+
+unsigned char convert_status(const char* s) {
+    unsigned char status = 0; // свободны
+    if (s[0] != -47) {
+        if (s[1] == -78) { // все сложно
+            status = 1;
+        } else { // заняты
+            status = 2;
+        }
+    }
+    return status;
+}
+
+unsigned char convert_status(string &s) {
+    unsigned char status = 0; // свободны
+    if (s[0] != -47) {
+        if (s[1] == -78) { // все сложно
+            status = 1;
+        } else { // заняты
+            status = 2;
+        }
+    }
+    return status;
+}

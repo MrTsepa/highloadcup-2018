@@ -10,14 +10,16 @@ RUN ./configure --prefix=/usr/local
 RUN make
 RUN make install
 
+RUN apt-get install -y libboost-all-dev
+
 EXPOSE 80
 
 ENV DATA_PATH=/tmp/data/data.zip PORT=80 HOST=0.0.0.0 START_SERVER=1 \
-    OPTIONS_PATH=/tmp/data/options.txt
+    OPTIONS_PATH=/tmp/data/options.txt REUSE_UNZIP=0
 
 WORKDIR /app
 ADD lib/ ./lib/
-ADD try1/ ./
+ADD try2/ ./try2/
 ADD CMakeLists.txt .
 
 WORKDIR /app/build
@@ -25,4 +27,4 @@ WORKDIR /app/build
 RUN cmake ..
 RUN cmake --build .
 
-CMD ./main
+CMD ./main2
