@@ -8,6 +8,7 @@
 #include <evhttp.h>
 
 #include <boost/container/flat_set.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <rapidjson/document.h>
 #include <rapidjson/istreamwrapper.h>
@@ -28,6 +29,7 @@ Likes likes;
 void filter(evhttp_request *request, void *params) {
     const char *query = evhttp_uridecode(strchr(request->uri, '?') + 1, 1, nullptr);
     Fields fields;
+    vector<Field> fields_to_print {ID, EMAIL};
     long limit;
     try {
         fields = filter_query_parse(query);
@@ -36,6 +38,7 @@ void filter(evhttp_request *request, void *params) {
             Field field = item.first;
             Pred pred = item.second.first;
             string &val = item.second.second;
+            bool print = true;
             switch (field) {
                 case SEX: {
                     switch (pred) {
@@ -99,6 +102,7 @@ void filter(evhttp_request *request, void *params) {
                         case NULL_: {
                             if (val == "1") {
                                 result &= ind.fname_index[strings.fnames.index_of(strings.fnames.find(""))];
+                                print = false;
                             } else if (val == "0") {
                                 result &= ~ind.fname_index[strings.fnames.index_of(strings.fnames.find(""))];
                             } else throw -1;
@@ -119,6 +123,7 @@ void filter(evhttp_request *request, void *params) {
                         case NULL_: {
                             if (val == "1") {
                                 result &= ind.sname_null;
+                                print = false;
                             } else if (val == "0") {
                                 result &= ~ind.sname_null;
                             } else throw -1;
@@ -131,11 +136,13 @@ void filter(evhttp_request *request, void *params) {
                 case PHONE: {
                     switch (pred) {
                         case CODE: {
+                            result &= ind.code_index[val];
                             break;
                         }
                         case NULL_: {
                             if (val == "1") {
                                 result &= ind.phone_null;
+                                print = false;
                             } else if (val == "0") {
                                 result &= ~ind.phone_null;
                             } else throw -1;
@@ -154,6 +161,7 @@ void filter(evhttp_request *request, void *params) {
                         case NULL_: {
                             if (val == "1") {
                                 result &= ind.countries_index[strings.countries.index_of(strings.countries.find(""))];
+                                print = false;
                             } else if (val == "0") {
                                 result &= ~ind.countries_index[strings.countries.index_of(strings.countries.find(""))];
                             } else throw -1;
@@ -184,6 +192,7 @@ void filter(evhttp_request *request, void *params) {
                         case NULL_: {
                             if (val == "1") {
                                 result &= ind.cities_index[strings.cities.index_of(strings.cities.find(""))];
+                                print = false;
                             } else if (val == "0") {
                                 result &= ~ind.cities_index[strings.cities.index_of(strings.cities.find(""))];
                             } else throw -1;
@@ -253,10 +262,11 @@ void filter(evhttp_request *request, void *params) {
                                 for (auto &item : ind.like_index[long_val]) {
                                     all[ind.id_index[item]] = true;
                                 }
+                                result &= all;
                                 start = at + 1;
                                 if (at == string::npos) break;
+                                all.reset();
                             }
-                            result &= all;
                             break;
                         }
                         default: throw -1;
@@ -270,12 +280,14 @@ void filter(evhttp_request *request, void *params) {
                                 result &= ind.has_active_premium;
                             } else if (val == "0") {
                                 result &= ~ind.has_active_premium;
+                                print = false;
                             } else throw -1;
                             break;
                         }
                         case NULL_: {
                             if (val == "1") {
                                 result &= ind.premium_null;
+                                print = false;
                             } else if (val == "0") {
                                 result &= ~ind.premium_null;
                             } else throw -1;
@@ -291,12 +303,17 @@ void filter(evhttp_request *request, void *params) {
                     if (*err != 0) {
                         throw -1;
                     }
+                    print = false;
                     break;
                 }
                 case QUERY_ID: {
+                    print = false;
                     break;
                 }
                 default: throw -1;
+            }
+            if (print) {
+                fields_to_print.emplace_back(field);
             }
         }
         evbuffer *buffer;
@@ -310,13 +327,64 @@ void filter(evhttp_request *request, void *params) {
             if (k >= limit) {
                 break;
             }
+            bool good = true;
+            for (auto &item : fields) {
+                Field field = item.first;
+                Pred pred = item.second.first;
+                string &val = item.second.second;
+                switch (field) {
+                    case EMAIL: {
+                        switch (pred) {
+                            case LT: {
+                                if (store[i].email >= val) good = false;
+                                break;
+                            }
+                            case GT: {
+                                if (store[i].email <= val) good = false;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                    case SNAME: {
+                        switch (pred) {
+                            case EQ: {
+                                if (store[i].sname != val) good = false;
+                                break;
+                            }
+                            case STARTS: {
+                                if (!boost::algorithm::starts_with(store[i].sname, val)) good = false;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                    case BIRTH: {
+                        char *err;
+                        const long long_val = strtol(val.c_str(), &err, 10);
+                        if (*err != 0) throw -1;
+                        switch (pred) {
+                            case LT: {
+                                if (store[i].birth >= long_val) good = false;
+                                break;
+                            }
+                            case GT: {
+                                if (store[i].birth <= long_val) good = false;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+                if (!good) break;
+            }
+            if (!good) continue;
             if (k > 0) {
                 evbuffer_add_printf(buffer, ",");
             }
             evbuffer_add_printf(buffer, "{");
             size_t l = 0;
-            for (auto &item : fields) {
-                const Field field = item.first;
+            for (Field field : fields_to_print) {
                 if (field == LIMIT or field == QUERY_ID or field == INTERESTS or field == LIKES) {
                     continue;
                 }

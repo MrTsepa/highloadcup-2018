@@ -66,8 +66,17 @@ void build_indices(Store &store, Likes &likes, Index &index) {
             index.sname_null[i] = true;
         }
     }
+    for (size_t i = 0; i < store.size(); i++) {
+        Account &account = store[i];
+        if (!account.phone.empty()) {
+            auto c1 = account.phone.find('(');
+            auto c2 = account.phone.find(')');
+            string code = account.phone.substr(c1 + 1, c2 - c1 - 1);
+            index.code_index[code][i] = true;
+        }
+    }
     for (size_t i = 0; i < likes.size(); i++) {
         Like &like = likes[i];
-        index.like_index[like.from].emplace(like.to);
+        index.like_index[like.to].emplace(like.from);
     }
 }

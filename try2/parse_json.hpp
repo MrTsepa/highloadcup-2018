@@ -26,6 +26,45 @@ void parse_json(Store &store, Likes &likes, Strings &strings) {
         d.ParseStream(isw);
         auto json_accounts = d["accounts"].GetArray();
         for (const auto &json_account : json_accounts) {
+            if (json_account.HasMember("interests")) {
+                for (const auto &s : json_account["interests"].GetArray()) {
+                    string interest = s.GetString();
+                    strings.interests.emplace(interest);
+                }
+            }
+            if (json_account.HasMember("city")) {
+                string city = json_account["city"].GetString();
+                strings.cities.emplace(city);
+            } else {
+                strings.cities.emplace("");
+            }
+            if (json_account.HasMember("country")) {
+                string country = json_account["country"].GetString();
+                strings.countries.emplace(country);
+            } else {
+                strings.countries.emplace("");
+            }
+            if (json_account.HasMember("fname")) {
+                string fname = json_account["fname"].GetString();
+                strings.fnames.emplace(fname);
+            } else {
+                strings.fnames.emplace("");
+            }
+        }
+    }
+    for (int j = 1; j < 200; j++) {
+        cout << j << endl;
+        char path[20];
+        sprintf(path, "accounts_%d.json", j);
+        auto ifs = ifstream(path);
+        if (!ifs.is_open()) {
+            break;
+        }
+        rapidjson::IStreamWrapper isw(ifs);
+        rapidjson::Document d;
+        d.ParseStream(isw);
+        auto json_accounts = d["accounts"].GetArray();
+        for (const auto &json_account : json_accounts) {
             Account account;
             account.id = static_cast<unsigned int>(json_account["id"].GetInt());
             account.sex = json_account["sex"].GetString()[0] == 'f';
@@ -39,24 +78,33 @@ void parse_json(Store &store, Likes &likes, Strings &strings) {
             if (json_account.HasMember("interests")) {
                 for (const auto &s : json_account["interests"].GetArray()) {
                     string interest = s.GetString();
-                    auto it = strings.interests.emplace(interest).first;
+                    auto it = strings.interests.find(interest);
                     account.interests.emplace(strings.interests.index_of(it));
                 }
             }
             if (json_account.HasMember("city")) {
                 string city = json_account["city"].GetString();
-                auto it = strings.cities.emplace(city).first;
+                auto it = strings.cities.find(city);
                 account.city = static_cast<unsigned short>(strings.cities.index_of(it));
+            } else {
+                auto it = strings.cities.find("");
+                account.city = static_cast<unsigned char>(strings.cities.index_of(it));
             }
             if (json_account.HasMember("country")) {
                 string country = json_account["country"].GetString();
-                auto it = strings.countries.emplace(country).first;
+                auto it = strings.countries.find(country);
+                account.country = static_cast<unsigned char>(strings.countries.index_of(it));
+            } else {
+                auto it = strings.countries.find("");
                 account.country = static_cast<unsigned char>(strings.countries.index_of(it));
             }
             if (json_account.HasMember("fname")) {
                 string fname = json_account["fname"].GetString();
-                auto it = strings.fnames.emplace(fname).first;
+                auto it = strings.fnames.find(fname);
                 account.fname = static_cast<unsigned short>(strings.fnames.index_of(it));
+            } else {
+                auto it = strings.fnames.find("");
+                account.fname = static_cast<unsigned char>(strings.fnames.index_of(it));
             }
             if (json_account.HasMember("sname")) {
                 account.sname = json_account["sname"].GetString();

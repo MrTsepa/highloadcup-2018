@@ -26,7 +26,7 @@ struct Account {
     unsigned short city;
     unsigned char status;
     unsigned char country;
-    bool has_premium;
+    bool has_premium = false;
     bool sex;
     string email;
     string phone;
@@ -58,6 +58,7 @@ struct Index {
     unordered_map<unsigned short, bset> cities_index;
     unordered_map<unsigned char, bset> countries_index;
     unordered_map<unsigned short, bset> fname_index;
+    unordered_map<string, bset> code_index;
     bset has_active_premium;
     bset premium_null;
     bset phone_null;

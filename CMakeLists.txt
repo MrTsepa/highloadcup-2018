@@ -11,20 +11,13 @@ find_library(event REQUIRED)
 
 set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
-find_library(boost 1.68 REQUIRED COMPONENTS container)
+find_library(boost 1.68 REQUIRED COMPONENTS container algorithm)
 
 include_directories(${Boost_INCLUDE_DIRS})
 
 include_directories("lib/include")
 
-#add_executable(
-#        main1 try1/main.cpp try1/parse_json.hpp try1/types.hpp
-#        try1/utils.hpp try1/build_indices.hpp
-#        try1/filter_query_parse.hpp try1/merge_sets.hpp
-#        try1/trie.hpp try1/group_query_parse.hpp
-#)
 add_executable(
         main2 try2/main.cpp try2/parse_json.hpp try2/build_indices.hpp
 )
-#target_link_libraries(main1 event)
 target_link_libraries(main2 event ${BOOST_LIBRARIES})
