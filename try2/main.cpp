@@ -422,7 +422,7 @@ void filter(evhttp_request *request, void *params) {
                           "Content-Type", "application/json");
         evhttp_add_header(evhttp_request_get_output_headers(request),
                           "Connection", "Keep-Alive");
-        evhttp_send_reply(request, HTTP_OK, "OK", buffer);
+        evhttp_send_reply(request, HTTP_OK, nullptr, buffer);
         evbuffer_free(buffer);
         return;
     } catch (...) {
@@ -435,12 +435,74 @@ void filter(evhttp_request *request, void *params) {
     }
 }
 
-void notfound(evhttp_request *request, void *params) {
+void group(evhttp_request *request, void *params) {
+    evbuffer *buffer;
+    buffer = evbuffer_new();
     evhttp_add_header(evhttp_request_get_output_headers(request),
-                      "Content-Type", "text/plain");
+                      "Content-Type", "application/json");
     evhttp_add_header(evhttp_request_get_output_headers(request),
                       "Connection", "Keep-Alive");
-    evhttp_send_reply(request, HTTP_NOTFOUND, nullptr, nullptr);
+    evbuffer_add_printf(buffer, "{\"groups\": []}");
+    evhttp_send_reply(request, HTTP_OK, nullptr, buffer);
+    evbuffer_free(buffer);
+}
+
+void new_account(evhttp_request *request, void *params) {
+    evbuffer *buffer;
+    buffer = evbuffer_new();
+    evhttp_add_header(evhttp_request_get_output_headers(request),
+                      "Content-Type", "application/json");
+    evhttp_add_header(evhttp_request_get_output_headers(request),
+                      "Connection", "Keep-Alive");
+    evbuffer_add_printf(buffer, "{}");
+    evhttp_send_reply(request, 201, nullptr, buffer);
+    evbuffer_free(buffer);
+}
+
+void update_likes(evhttp_request *request, void *params) {
+    evbuffer *buffer;
+    buffer = evbuffer_new();
+    evhttp_add_header(evhttp_request_get_output_headers(request),
+                      "Content-Type", "application/json");
+    evhttp_add_header(evhttp_request_get_output_headers(request),
+                      "Connection", "Keep-Alive");
+    evbuffer_add_printf(buffer, "{}");
+    evhttp_send_reply(request, 202, nullptr, buffer);
+    evbuffer_free(buffer);
+}
+
+void notfound(evhttp_request *request, void *params) {
+    evbuffer *buffer;
+    buffer = evbuffer_new();
+    evhttp_add_header(evhttp_request_get_output_headers(request),
+                      "Content-Type", "application/json");
+    evhttp_add_header(evhttp_request_get_output_headers(request),
+                      "Connection", "Keep-Alive");
+    const char* cur = request->uri;
+    cur += 10;
+    while (*cur != '/') {
+        if ('0' <= *cur && *cur <= '9') {
+
+        } else {
+            evhttp_send_reply(request, HTTP_NOTFOUND, nullptr, nullptr);
+            return;
+        }
+        cur++;
+    }
+    cur++;
+    if (*cur == '\0' || *cur == '?') {
+        evbuffer_add_printf(buffer, "{}");
+        evhttp_send_reply(request, 202, nullptr, buffer);
+    } else if (strncmp(cur, "recommend", 9) == 0) {
+        evbuffer_add_printf(buffer, "{\"accounts\": []}");
+        evhttp_send_reply(request, HTTP_OK, nullptr, buffer);
+    } else if (strncmp(cur, "suggest", 7) == 0) {
+        evbuffer_add_printf(buffer, "{\"accounts\": []}");
+        evhttp_send_reply(request, HTTP_OK, nullptr, buffer);
+    } else {
+        evhttp_send_reply(request, HTTP_NOTFOUND, nullptr, nullptr);
+    }
+    evbuffer_free(buffer);
 }
 
 void start_server(char *host, uint16_t port) {
@@ -449,6 +511,9 @@ void start_server(char *host, uint16_t port) {
     ebase = event_base_new();
     server = evhttp_new(ebase);
     evhttp_set_cb(server, "/accounts/filter/", filter, nullptr);
+    evhttp_set_cb(server, "/accounts/group/", group, nullptr);
+    evhttp_set_cb(server, "/accounts/new/", new_account, nullptr);
+    evhttp_set_cb(server, "/accounts/likes/", update_likes, nullptr);
     evhttp_set_gencb(server, notfound, nullptr);
 
     if (evhttp_bind_socket(server, host, port) != 0) {
