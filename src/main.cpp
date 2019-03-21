@@ -17,6 +17,7 @@
 #include "build_indices.hpp"
 #include "parse_json.hpp"
 #include "filter_query_parse.hpp"
+#include "group_query_parse.hpp"
 
 using namespace std;
 
@@ -27,12 +28,13 @@ Likes likes;
 
 
 void filter(evhttp_request *request, void *params) {
-    const char *query = evhttp_uridecode(strchr(request->uri, '?') + 1, 1, nullptr);
-    Fields fields;
-    vector<Field> fields_to_print {ID, EMAIL};
-    long limit;
     try {
-        fields = filter_query_parse(query);
+        const char *query = evhttp_uridecode(strchr(request->uri, '?') + 1, 1, nullptr);
+        Filter::Fields fields;
+        vector<Field> fields_to_print {ID, EMAIL};
+        long limit;
+
+        fields = Filter::query_parse(query);
         bset result = bset().set();
         for (auto &item : fields) {
             Field field = item.first;
@@ -436,15 +438,28 @@ void filter(evhttp_request *request, void *params) {
 }
 
 void group(evhttp_request *request, void *params) {
-    evbuffer *buffer;
-    buffer = evbuffer_new();
-    evhttp_add_header(evhttp_request_get_output_headers(request),
-                      "Content-Type", "application/json");
-    evhttp_add_header(evhttp_request_get_output_headers(request),
-                      "Connection", "Keep-Alive");
-    evbuffer_add_printf(buffer, "{\"groups\": []}");
-    evhttp_send_reply(request, HTTP_OK, nullptr, buffer);
-    evbuffer_free(buffer);
+    try {
+        const char *query = evhttp_uridecode(strchr(request->uri, '?') + 1, 1, nullptr);
+        Group::Fields fields = Group::query_parse(query);
+
+        evbuffer *buffer;
+        buffer = evbuffer_new();
+        evbuffer_add_printf(buffer, "{\"groups\": []}");
+
+        evhttp_add_header(evhttp_request_get_output_headers(request),
+                          "Content-Type", "application/json");
+        evhttp_add_header(evhttp_request_get_output_headers(request),
+                          "Connection", "Keep-Alive");
+        evhttp_send_reply(request, HTTP_OK, nullptr, buffer);
+        evbuffer_free(buffer);
+    } catch (...) {
+        evhttp_add_header(evhttp_request_get_output_headers(request),
+                          "Content-Type", "text/plain");
+        evhttp_add_header(evhttp_request_get_output_headers(request),
+                          "Connection", "Keep-Alive");
+        evhttp_send_reply(request, HTTP_BADREQUEST, nullptr, nullptr);
+        return;
+    }
 }
 
 void new_account(evhttp_request *request, void *params) {

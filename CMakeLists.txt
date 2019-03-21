@@ -18,6 +18,8 @@ include_directories(${Boost_INCLUDE_DIRS})
 include_directories("lib/include")
 
 add_executable(
-        main2 try2/main.cpp try2/parse_json.hpp try2/build_indices.hpp
+        main src/main.cpp src/parse_json.hpp src/build_indices.hpp
+        src/filter_query_parse.hpp src/group_query_parse.hpp src/types.hpp
+        src/utils.hpp
 )
-target_link_libraries(main2 event ${BOOST_LIBRARIES})
+target_link_libraries(main event ${BOOST_LIBRARIES})

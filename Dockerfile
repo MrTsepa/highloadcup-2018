@@ -19,7 +19,7 @@ ENV DATA_PATH=/tmp/data/data.zip PORT=80 HOST=0.0.0.0 START_SERVER=1 \
 
 WORKDIR /app
 ADD lib/ ./lib/
-ADD try2/ ./try2/
+ADD src ./src/
 ADD CMakeLists.txt .
 
 WORKDIR /app/build
@@ -27,4 +27,4 @@ WORKDIR /app/build
 RUN cmake ..
 RUN cmake --build .
 
-CMD ./main2
+CMD ./main
